@@ -1,0 +1,42 @@
+Package: CHETAH
+Title: Fast and accurate scRNA-seq cell type identification
+Type: Package
+Version: 0.99.0
+Date: 23-05-2018
+Authors@R: c(person("Jurrian", "de Kanter", email = "jurriandekanter@gmail.com",  role = c("aut", "cre")),
+             person("Philip", "Lijnzaad", email = "p.lijnzaad@prinsesmaximacentrum.nl", role = c("aut")))
+Description: CHETAH is a accurate, selective and fast scRNA-seq classifier. 
+	Classification is guided by a reference dataset,
+    preferentially also a scRNA-seq dataset. By hierarchical clustering of the reference data, CHETAH creates
+	a classification tree that enables a step-wise, top-to-bottom classification. Using a novel stopping rule,
+	CHETAH classifies the input cells to the cell types of the references and to "intermediate types": more general
+	classifications that ended in an intermediate node of the tree.
+Imports:
+    gplots,
+    shiny,
+    plotly,
+    pheatmap,
+    bioDist,
+    dendextend,
+    cowplot,
+	  corrplot,
+	  grDevices,
+	  stats,
+	  graphics
+Depends:
+    R (>= 3.5),
+	  ggplot2
+License: GPL-3
+Encoding: UTF-8
+biocViews: 
+	Classification,
+	RNASeq,
+	SingleCell,
+	Clustering
+RoxygenNote: 6.1.0
+Suggests: 
+	knitr,
+  rmarkdown,
+  Matrix
+VignetteBuilder: knitr
+LazyData: true
