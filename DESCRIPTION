@@ -24,7 +24,7 @@ Imports:
 	  stats,
 	  graphics
 Depends:
-    R (>= 3.5),
+    R (>= 3.6),
 	  ggplot2
 License: file LICENSE
 Encoding: UTF-8
@@ -33,7 +33,7 @@ biocViews:
 	RNASeq,
 	SingleCell,
 	Clustering
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
 Suggests: 
 	knitr,
   rmarkdown,

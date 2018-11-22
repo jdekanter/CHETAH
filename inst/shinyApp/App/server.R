@@ -102,7 +102,7 @@ server <- function(input, output, session) {
     ## Classification Tree output
     classTree <- reactive({
         if (input$colorsplits) interm <- TRUE else interm <- FALSE
-        if(interm) PlotTree(chetah = chetah, col_nodes = Clrs(), no_bgc = T) else {
+        if(interm) PlotTree(chetah = chetah, col_nodes = Clrs(), no_bgc = TRUE) else {
             PlotTree(chetah = chetah, col = Clrs()) + ggtitle('')
         }
     })
