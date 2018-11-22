@@ -13,73 +13,112 @@ CHETAHclassifier(input, ref_cells = NULL, ref_types = NULL,
   only_pos = FALSE, print_steps = FALSE)
 }
 \arguments{
-\item{input}{\strong{required}: an expression matrix (matrix, data.frame or Matrix) of the cells of interest, with cells in the columns and genes in the rows}
+\item{input}{\strong{required}: an expression matrix (matrix, data.frame or Matrix)
+of the cells of interest, with cells in the columns and genes in the rows}
 
-\item{ref_cells}{\strong{required}: either \cr (1) a list of expression matrices, with one matrix for each reference cell type. IMPORTANT:
+\item{ref_cells}{\strong{required}: either \cr (1) a list of expression matrices,
+with one matrix for each reference cell type. IMPORTANT:
 \emph{the list has to be named!} (with the corresponding cell types) \cr
-(2) one expression matrix: in this case provide the cell type label in the \code{ref_type} variable.}
+(2) one expression matrix: in this case provide the cell type label
+in the \code{ref_type} variable.}
 
-\item{ref_types}{\strong{required}: when ref_cells is one matrix, ref_types must be a vector of the cell types. The names must correspond to the column names of \code{ref_cells}, in the same order!.}
+\item{ref_types}{\strong{required}: when ref_cells is óne matrix,
+ref_types must be a vector of the cell types.
+The names must correspond to the column names of \code{ref_cells}, in the same order!.}
 
-\item{ref_profiles}{\emph{optional} In case of bulk-RNA seq or micro-arrays, an expression matrix with one (average) reference expression profile per cell type.}
+\item{ref_profiles}{\emph{optional} In case of bulk-RNA seq or micro-arrays,
+an expression matrix with one (average) reference expression profile per cell type.}
 
-\item{thresh}{the initial confidence threshold (can be changed later by \code{\link{Classify}})}
+\item{thresh}{the initial confidence threshold (can be changed later
+by \code{\link{Classify}})}
 
 \item{gs_method}{method for gene selection. In every node of the tree: \cr
-"fc" = quick method: either a fixed amount (\code{n_genes}) of genes is selected with the highest fold-change (default), \cr
-or genes are selected that have a fold-change higher than \code{fc_thresh} (the latter is used when \code{fix_ngenes = FALSE}) . \cr
-"wilcox": genes are selected based on fold-change (\code{fc_thresh}), percentage of expression (\code{pc_thresh}) and p-values (\code{p_thresh}), p-values are found by the wilcox test}
+"fc" = quick method: either a fixed amount (\code{n_genes})
+of genes is selected with the highest fold-change (default), \cr
+or genes are selected that have a fold-change higher than \code{fc_thresh}
+(the latter is used when \code{fix_ngenes = FALSE}) . \cr
+"wilcox": genes are selected based on fold-change (\code{fc_thresh}),
+percentage of expression (\code{pc_thresh}) and p-values (\code{p_thresh}),
+p-values are found by the wilcox test}
 
-\item{cor_method}{the correlation measure: one of: "spearman" (default), "kendall", "pearson", "cosine"}
+\item{cor_method}{the correlation measure: one of:
+"spearman" (default), "kendall", "pearson", "cosine"}
 
 \item{clust_method}{the method used for clustering the reference profiles
 one of the methods from \code{\link[stats]{hclust}}}
 
 \item{clust_dist}{a distance measure, default: \code{\link[bioDist]{spearman.dist}}}
 
-\item{n_genes}{The amount of genes used in every step. Only used if \code{fix_ngenes = TRUE}}
+\item{n_genes}{The amount of genes used in every step. Only used if
+\code{fix_ngenes = TRUE}}
 
-\item{pc_thresh}{when: \emph{gs_method = "wilcox"}, only genes are selected for which more than a \code{pc_tresh} fraction of a reference group of cells express that gene}
+\item{pc_thresh}{when: \emph{gs_method = "wilcox"}, only genes are selected
+for which more than a \code{pc_tresh} fraction of a reference group of cells
+express that gene}
 
-\item{p_thresh}{when: \emph{gs_method = "wilcox" }, only genes are selected that have a p-value < \code{p_thresh}}
+\item{p_thresh}{when: \emph{gs_method = "wilcox" }, only genes are selected
+that have a p-value < \code{p_thresh}}
 
-\item{fc_thresh}{when: \emph{gs_method = "wilcox" or gs_method = "fc" AND fix_ngenes = FALSE}, only genes are selected that have a log2 fld-change > \code{fc_thresh} between two reference groups. \cr
+\item{fc_thresh}{when: \emph{gs_method = "wilcox" or gs_method = "fc"
+AND fix_ngenes = FALSE},
+only genes are selected that have a log2 fld-change > \code{fc_thresh}
+between two reference groups. \cr
 \strong{if this mode is selected, the reference must be in the log2 space}.}
 
-\item{subsample}{to prevent reference types with a lot of cells to influence the gene selection, subsample types with more that \code{subsample} cells}
+\item{subsample}{to prevent reference types with a lot of cells to influence
+the gene selection, subsample types with more that \code{subsample} cells}
 
-\item{fix_ngenes}{when: \emph{gs_method = "fc"} use a fixed amount of genes for all correlations. when: \emph{gs_method = "wilcox"} use a maximum of genes per step.
-When \code{fix_ngenes = FALSE & gs_methode = "fc"} \code{fc_thresh} is used to define the fold-change cut-off for gene selection.}
+\item{fix_ngenes}{when: \emph{gs_method = "fc"} use a fixed amount of genes
+for all correlations. when: \emph{gs_method = "wilcox"}
+use a maximum of genes per step.
+When \code{fix_ngenes = FALSE & gs_methode = "fc"} \code{fc_thresh}
+is used to define the fold-change cut-off for gene selection.}
 
 \item{plot.tree}{Plot the classification tree.}
 
-\item{only_pos}{\emph{not recommended}: only use genes for a reference type that are higher expressed in that type, than the others in that node.}
+\item{only_pos}{\emph{not recommended}: only use genes for a reference type
+that are higher expressed in that type, than the others in that node.}
 
-\item{print_steps}{whether the number of genes (postive and negative) per step per ref_cell_type should be printed}
+\item{print_steps}{whether the number of genes (postive and negative)
+per step per ref_cell_type should be printed}
 }
 \value{
 The chetah object:
 A list containing the following objects:
-NOTE: all objects that are lists themselfs contain one object per node in the classification tree
+NOTE: all objects that are lists themselfs contain one object
+per node in the classification tree
 \itemize{
-  \item \strong{classification} a named vector: the classified types with the corresponding names of the input cells
+  \item \strong{classification} a named vector: the classified types
+  with the corresponding names of the input cells
   \item \strong{prof_scores} A list with the profile scores
   \item \strong{conf_scores} A list with the confidence scores
   \item \strong{nodetypes} A list with the cell types under each node
-  \item \strong{correlations} A list with the correlations of the input cells to the reference profiles
+  \item \strong{correlations} A list with the correlations of the
+  input cells to the reference profiles
   \item \strong{tree} the hclust object of the classification tree
   \item \strong{nodecoor} the coordinates of the nodes of the classification tree
-  \item \strong{genes} A list per node, containing a list per reference type with the genes used for the profile scores of that type
+  \item \strong{genes} A list per node, containing a list per
+  reference type with the genes used for the profile scores of that type
   \item \strong{parameters} The parameters used
 }
 }
 \description{
-CHETAH will hierarchically cluster the reference data
-to produce a classification tree (ct). In each node of the ct, CHETAH will
-divide the classification to the two branches based on gene selections, correlations and calculation of profile and confidence scores. \cr
-Some input cells will reach the leaf nodes of the ct (the pre-defined cell types), these classifications are called \strong{final types} \cr
-For other cells, assignment will stop in a node, if no enough evidence is available to assign that cell to one of the branches of that node. These classifcations are called \strong{intermediate types}.  \cr
-\emph{NOTE: We recommend to use the default parameters, as these usually give the best results.}
+CHETAH classifies an input dataset by comparing it to
+a reference dataset in a stepwise, top-to-bottom fashion.
+See 'details' for a full explanation.
+\emph{NOTE: We recommend to use all the default parameters}
+}
+\details{
+CHETAH will hierarchically cluster reference data
+to produce a classification tree (ct).
+The Classification will In each node of the ct, CHETAH will
+divide the classification to the two branches based on gene selections,
+correlations and calculation of profile and confidence scores.
+Some input cells will reach the leaf nodes of the ct (the pre-defined cell types),
+these classifications are called \strong{final types}
+For other cells, assignment will stop in a node, if no enough evidence is available
+to assign that cell to one of the branches of that node. These classifcations
+are called \strong{intermediate types}.  \cr
 }
 \examples{
 ## Melanoma data from Tirosh et al. (2016) Science

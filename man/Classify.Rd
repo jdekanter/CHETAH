@@ -12,7 +12,8 @@ Classify(chetah, thresh)
 \item{chetah}{the CHETAH object}
 
 \item{thresh}{a confidence threshold between -0 and 2. \cr
-Selecting 0 will classify all cells, whereas 2 will result in (almost) no cells to be classified. \cr
+Selecting 0 will classify all cells, whereas 2 will result i
+n (almost) no cells to be classified. \cr
 \emph{recommended}: between 0.1 (fairly confident) and 1 (very confident)}
 }
 \value{

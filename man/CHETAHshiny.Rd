@@ -9,10 +9,13 @@ CHETAHshiny(chetah, coor, counts)
 \arguments{
 \item{chetah}{a chetah object}
 
-\item{coor}{the coordinates of 2D visualization, e.g. t-SNE. 2 columns for the 2 coordinates types
-(e.g. tSNE_1, tSNE_2). The column names have to overlap with the names of the input count data of chetah.}
+\item{coor}{the coordinates of 2D visualization,
+e.g. t-SNE. 2 columns for the 2 coordinates types
+(e.g. tSNE_1, tSNE_2). The column names have
+to overlap with the names of the input count data of chetah.}
 
-\item{counts}{the counts of the data that was the input to the chetah classification}
+\item{counts}{the counts of the data that was
+the input to the chetah classification}
 }
 \value{
 Opens a web page in your default browser

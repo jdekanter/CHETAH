@@ -9,18 +9,24 @@ PlotTSNE(toplot, coor, col = NULL, return = FALSE, limits = NULL,
   legend_label = "")
 }
 \arguments{
-\item{toplot}{the variable that should be plotted. Either a character vector (which will become a factor) or a factor, or a (continuous) numeric.
-If toplot is not named with the rownames of \code{coor}, it is assumed that the order of the two is the same.}
+\item{toplot}{the variable that should be plotted. Either a character vector
+(which will become a factor) or a factor, or a (continuous) numeric.
+If toplot is not named with the rownames of \code{coor}, it is assumed
+that the order of the two is the same.}
 
 \item{coor}{the tSNE, or other 2D vizualization coordinates.
-A matrix or dataframe with cells in the rows and x (e.g. tSNE_1) and y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively}
+A matrix or dataframe with cells in the rows and x (e.g. tSNE_1) and
+y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively}
 
-\item{col}{a vector of colors. If \code{toplot} is a numeric, this will become a continuous scale. \cr
-\emph{If \code{toplot} is a charachter vector, the colors should be named with the unique values (/levels) of toplot}}
+\item{col}{a vector of colors. If \code{toplot} is a numeric,
+this will become a continuous scale. \cr
+\emph{If \code{toplot} is a charachter vector, the colors should
+be named with the unique values (/levels) of toplot}}
 
 \item{return}{instead of printing, return the ggplot object}
 
-\item{limits}{the limits of the continuous variable to plot. When not provided the minimal and maximal value will be used}
+\item{limits}{the limits of the continuous variable to plot.
+When not provided the minimal and maximal value will be used}
 
 \item{pt.size}{the point-size}
 

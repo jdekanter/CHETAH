@@ -2,7 +2,8 @@
 % Please edit documentation in R/Utils_CHETAH.R
 \name{PlotCHETAH}
 \alias{PlotCHETAH}
-\title{Plot the CHETAH classification on 2D visulization like t-SNE + the corresponding classification tree,
+\title{Plot the CHETAH classification on 2D visulization like t-SNE
++ the corresponding classification tree,
 colored with the same colors}
 \usage{
 PlotCHETAH(chetah, coor, interm = FALSE, return = FALSE, tree = TRUE,
@@ -12,7 +13,8 @@ PlotCHETAH(chetah, coor, interm = FALSE, return = FALSE, tree = TRUE,
 \item{chetah}{a chetah object}
 
 \item{coor}{the tSNE, or other 2D vizualization coordinates.
-A matrix or dataframe with cells in the rows and x (e.g. tSNE_1) and y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively}
+A matrix or dataframe with cells in the rows and x (e.g. tSNE_1)
+ and y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively}
 
 \item{interm}{color the intermediate instead of the final types}
 
@@ -22,15 +24,18 @@ A matrix or dataframe with cells in the rows and x (e.g. tSNE_1) and y (e.g. tSN
 
 \item{pt.size}{the point-size of the classication plot}
 
-\item{return_col}{whether the colors that are used for the classification plot should be returned}
+\item{return_col}{whether the colors that are used for
+the classification plot should be returned}
 
-\item{col}{custom colors for the cell types. \emph{the colors should be named with the corresponding cell types}}
+\item{col}{custom colors for the cell types. \emph{the colors
+should be named with the corresponding cell types}}
 }
 \value{
 a ggplot object
 }
 \description{
-Plot the CHETAH classification on 2D visulization like t-SNE + the corresponding classification tree,
+Plot the CHETAH classification on 2D visulization like t-SNE
++ the corresponding classification tree,
 colored with the same colors
 }
 \examples{

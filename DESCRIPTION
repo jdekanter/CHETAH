@@ -26,7 +26,7 @@ Imports:
 Depends:
     R (>= 3.5),
 	  ggplot2
-License: GPL-3
+License: file LICENSE
 Encoding: UTF-8
 biocViews: 
 	Classification,
@@ -40,3 +40,5 @@ Suggests:
   Matrix
 VignetteBuilder: knitr
 LazyData: true
+BugReports: https://github.com/jdekanter/CHETAH
+URL: https://github.com/jdekanter/CHETAH

@@ -9,19 +9,25 @@ between reference cells.}
 ClassifyReference(ref_cells, ref_types = NULL, return = FALSE, ...)
 }
 \arguments{
-\item{ref_cells}{the reference, similar to \code{\link{CHETAHclassifier}}'s ref_cells}
+\item{ref_cells}{the reference, similar to
+\code{\link{CHETAHclassifier}}'s ref_cells}
 
-\item{ref_types}{must be provide if \code{ref_cells} is a matrix of dataframe}
+\item{ref_types}{must be provide if
+\code{ref_cells} is a matrix of dataframe}
 
 \item{return}{return the matrix that was used to produce the plot}
 
-\item{...}{Other variables to pass to \code{\link{CHETAHclassifier}}}
+\item{...}{Other variables to pass to
+\code{\link{CHETAHclassifier}}}
 }
 \value{
-A square plot. The rows are the original cell types, the columns the classifion labels.
-The colors and sizes of the squares indicate which part of the cells of the rowname type are
+A square plot. The rows are the original cell types,
+the columns the classifion labels.
+The colors and sizes of the squares indicate which
+part of the cells of the rowname type are
 classified to the type of the column name.
-On the left of the plot, the percentage of cells that is classified to an intermediate type
+On the left of the plot, the percentage of cells
+that is classified to an intermediate type
 is plotted.
 A good reference would classify nearly 100% of cells of type A to type A.
 }

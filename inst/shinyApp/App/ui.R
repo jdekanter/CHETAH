@@ -1,6 +1,8 @@
 # Define UI ----
 ui <- fluidPage(
   tags$head(
+
+    ## CSS Style
     tags$style(HTML("
 h1 {
   font-family: 'Raleway Black', 'Arial Black', sans-serif;
@@ -112,7 +114,8 @@ h3 {
                                     column(12,
                                            ## Classification percentages
                                            h3("Cell type percentages"),
-                                           plotOutput('typestable')
+                                           plotOutput('typestable'),
+                                           downloadButton('dwn_ttable', 'Download Plot')
                                     )
                                   ),
                                   fluidRow(
@@ -191,17 +194,63 @@ h3 {
                                     )
                                   )
                          ),
-                         ### Tab 5
-                         tabPanel("Differentially expressed genes",
-                                  fluidRow(
-                                    column(12,
-                                           ## Gene heatmap
-                                           h3("Differentially expressed genes per cell type"),
-                                           plotOutput(outputId = "diff_exp_HM", height = 800),
-                                           downloadButton('dwn_diff_expr_HM', 'Download Plot')
-                                    )
+                         ### Tab0
+                         ### Tab 6
+                         tabPanel("Info",
+                                  tags$div(
+                                    tags$p("Welcome to the CHETAH shiny application."),
+                                    tags$p("Here, you can interact with your data and the CHETAH output."),
+                                    tags$p("On this page, you will find a short explanation of every tab panel on this browser page,"),
+                                    tags$p("the plots on every page and the way to change the plots."),
+                                    tags$p("A button below each plot gives the option to download the current plot."),
+                                    tags$p('Each t-SNE plot is interactive, so you can zoom in and out. Other plots will adapt to only show information of the cells in the currently selected t-SNE window'),
+                                    tags$h3('General'),
+                                    tags$p('CHETAH creates a classifcation tree, by hierarchically clustering the reference data.'),
+                                    tags$p('CHETAh calculates two types of scores for each input cell j in each node of the classification tree.'),
+                                    tags$p('First, for each cell j, a Profile Score is calculated for each reference cell type in this node'),
+                                    tags$p('This Profile Score is a -1:1 value that represents the similarity of j to the reference profile.'),
+                                    tags$p('Based of these Profile Scores, cell j is assigned to the right or the left branch of the node.'),
+                                    tags$p('For this assignment, one Confidence Score is calculated. This score (values of 0:2) represents the confidence of the assignment'),
+                                    tags$p('If the assignment of j has a confidence below the Confidence Threshold, the cell is not assigned to a branch, but for j, the classification will stop in that node.'),
+                                    tags$p("A classifcation to a non-leaf node are called an 'intermediate type'."),
+                                    tags$p("Classifcations to a leaf node of the tree is called a 'final type'."), tags$br(),
+                                    tags$p("Recap: for each cell j, in each node, a Profile Score is calculated for each reference profile, the cell is assigned to a branch, and for this assignment, one Confidence Score is calculated."),
+                                    tags$h3('Classification'),
+                                    tags$p("This is the page where you can view the CHETAH classification."),
+                                    tags$p("The first plot shows the classification on a t-SNE map with the coordinates that you provided."),
+                                    tags$p('Each plot is colored according to the CHETAH infered cell type'),
+                                    tags$p("The second plot shows the percentages of cell types in you sample in a barplot."),
+                                    tags$p("The third plot shows the classification tree that CHETAH constructed. The nodes are colored with the same colors as used in the plots above."), tags$br(),
+                                    tags$p("To color the intermediate types (/nodes) instead of the final types, click the button in the left menu panel."),
+                                    tags$p("To change the strictness of the classifcation, change the Confidence Threshold. The Confidence score has a value between 0 and 2."),
+                                    tags$p("0.1 is the default threshold. A threshold of 0 will classify all cells to a final type (leaf node of the tree) and 1 is a very stringent cut-off,"),
+                                    tags$p("in which case only the cells with very high confidence will be classified."),
+                                    tags$h3('Confidence scores'),
+                                    tags$p('Again, the first plot is a t-SNE, but now, the cells are colored by the confidence score of the currently selected node.'),
+                                    tags$p('If a cell is assigned to the left branch, the scores are negative (for plotting purposes) and the colors shades of blue. For the right branch shades of red are used.'),
+                                    tags$p('The bottom left plot shows the classification tree. Blue cells in the t-SNE plot above are assigned to the blue branches, the red cells are assigned to the red branches.'),
+                                    tags$p('The plot in the right corner shows a heatmap of the profile scores for each individual reference profile in the current branch.'),
+                                    tags$p('For an input cell j, the more strongly the colors/scores differ between types of the two branches, the higher the confidence score for that cell is'),
+                                    tags$br(),
+                                    tags$p("The branch that is shown can be changed by the 'Choose Node' bar"),
+                                    tags$h3('Profile scores'),
+                                    tags$p("All plots in this tab show the profile scores for one reference cell type in one node."),
+                                    tags$p("This score represents the chance of a cell being of that type, rather than the types in the other branch."),
+                                    tags$p("The first plot shows a t-SNE colored by the profile score currently selected reference profile."),
+                                    tags$p("The second plot shows the same values in box plots, grouped by the CHETAH cell type."),
+                                    tags$p("The third plot shows the tree, but now the selected reference profile is colored in one color and the types of the other branch are colored in another color. These are the types with which the current type is compared. Is a Profile Score high for type X (with Y and Z in the other branch), than this means that this cell is highly more likely to be of type X than of the types in the other branch."),
+                                    tags$br(),
+                                    tags$p('In all plots in this tab, only one profile score is depicted. In the left menu, both the node and the reference profile for which the reference profiel should be depicted can be selected.'),
+                                    tags$h3('Genes used by CHETAH'),
+                                    tags$p('In this panel, the expression in the input data of the genes that were used by CHETAH for the classification can be viewed in a heatmap.'),
+                                    tags$p("CHETAH selects a separate group of genes for each reference type, in each node. The cell types to which the current type is compared, can be viewed in the tree below the heatmap. This tree is similar to that on the 'Profile Scores' tab."),
+                                    tags$p("The node and reference cell type for which to show the genes can be selected.
+                                    Also, the matrix can be scaled per row (gene), by clicking 'Scale Matrix'.
+                                    Moreover, the number of genes to show can be adjusted by '# of genes'.
+                                    Automatically, the genes that had the highest difference in the reference will be selected.
+                                    If the genes that have the highest difference in the input data should be selected, check the 'Genes with max. difference in input' box")
                                   )
-                         )
+                            )
              )
            )
     )

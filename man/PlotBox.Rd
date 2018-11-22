@@ -8,14 +8,19 @@ PlotBox(toplot, class, col = NULL, grad_col = NULL, limits = NULL,
   return = FALSE)
 }
 \arguments{
-\item{toplot}{a numeric variable. When provided as a dataframe, the colname will be used a a title}
+\item{toplot}{a numeric variable. When provided as a dataframe,
+the colname will be used a a title}
 
-\item{class}{a factor of the length of \code{toplot} to indicate the groups}
+\item{class}{a factor of the length of \code{toplot}
+to indicate the groups}
 
-\item{col}{a character vector of colors, with the names of the factor levels}
+\item{col}{a character vector of colors, with the
+names of the factor levels}
 
-\item{grad_col}{if defined, the jittered points of the individual values of each cell behind
-the boxplot will be colored by these gradient colors based on their value}
+\item{grad_col}{if defined, the jittered points of
+the individual values of each cell behind
+the boxplot will be colored by these gradient colors
+based on their value}
 
 \item{limits}{the limits of \code{toplot}}
 
