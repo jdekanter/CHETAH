@@ -3,7 +3,7 @@ server <- function(input, output, session) {
     counts <- CHETAH:::ch_env$counts
     chetah <- CHETAH:::ch_env$chetah
     coor   <- CHETAH:::ch_env$coor
-    rm(counts, chetah, coor, envir = ch_env)
+    rm(counts, chetah, coor, envir = CHETAH:::ch_env)
     gc()
     ## Confidence t-SNE color gradient
     grad_col <- c(gplots::colorpanel(n = 50, low = '#2f2bad', mid = '#68cded', high = '#f4f4f4'),
