@@ -24,7 +24,7 @@ Imports:
 	  stats,
 	  graphics
 Depends:
-    R (>= 3.6),
+    R (>= 3.5),
 	  ggplot2
 License: file LICENSE
 Encoding: UTF-8
