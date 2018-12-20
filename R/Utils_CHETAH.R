@@ -1185,6 +1185,7 @@ ch_env <- new.env(parent = emptyenv())
 #' @importFrom plotly renderPlotly plotlyOutput ggplotly event_data
 #' @import shiny
 #' @importFrom pheatmap pheatmap
+#' @importFrom reshape2 melt
 #' @return
 #' Opens a web page in your default browser
 #' @export

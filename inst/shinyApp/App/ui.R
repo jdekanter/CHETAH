@@ -93,6 +93,11 @@ h3 {
                         checkboxInput(inputId = "largediff",
                                       label = p('Genes with max. difference in the INPUT', class = 'opt'),
                                       value = FALSE)
+                      ),
+                      conditionalPanel(
+                        condition = "input.MP == 'Expression per gene'",
+                        ## Height of the matrix 3
+                        uiOutput(outputId = 'geneselection')
                       )
            )
     ),
@@ -191,6 +196,17 @@ h3 {
                                            downloadButton('dwn_exprHM', 'Download Plot'),
                                            h3("Tree"),
                                            plotOutput(outputId = 'genesTree', height = 600)
+                                    )
+                                  )
+                         ),
+                         ### Tab 5
+                         tabPanel("Expression per gene",
+                                  fluidRow(
+                                    column(12,
+                                           ## Gene heatmap
+                                           h3("Gene expression per cell type"),
+                                           plotOutput(outputId = "geneExpr", height = 400),
+                                           downloadButton('dwn_geneExpr', 'Download Plot')
                                     )
                                   )
                          ),

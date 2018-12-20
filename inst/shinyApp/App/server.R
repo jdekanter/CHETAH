@@ -82,6 +82,14 @@ server <- function(input, output, session) {
         req(input$whichtype, input$whichnode)
         input$whichtype %in% names(chetah$nodetypes[[as.numeric(input$whichnode)]])
     })
+    ## Select a gene for Tab 5
+    output$geneselection <- renderUI ({
+      req(counts)
+      choices <- rownames(counts)
+      selectInput(inputId = "whichgene",
+                  label = p("Choose a Gene", class = 'opt'),
+                  choices = choices)
+    })
     ## ----------------------------------- Tab 1 ---------------------------
     ## Classification t-SNE
     classTsne <- reactive({
@@ -421,4 +429,32 @@ server <- function(input, output, session) {
     )
     ## Plot classification tree
     output$genesTree <- renderPlot({ celltTree()() })
+    ## ----------------------------------- Tab5  ---------------------------
+    geneExpr <- reactive({
+      req(input$whichgene)
+        genes <- counts[input$whichgene, ]
+        #if(!is.null(log)) genes <- log2(genes + 1)
+        genes <- cbind.data.frame(genes, as.data.frame(classification()))
+        #if(!is.null(sub)) genes <- genes[genes$type %in% sub, ]
+        colnames(genes) <- c('gene', 'type')
+        suppressMessages(genes <- reshape2::melt(genes))
+
+        ggplot(genes, aes(x=type, y = value)) +
+          geom_jitter(aes(color = type), size = 2) +
+          geom_boxplot(aes(color = type), fill = rgb(1,1,1,0.5), outlier.colour = "NA")  +
+          theme_classic() +
+          theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 10),
+                axis.title.x = element_blank()) +
+          guides(color=FALSE) +
+          scale_color_manual(values = Clrs())
+    })
+    output$geneExpr <- renderPlot({ geneExpr() })
+    output$dwn_geneExpr <- downloadHandler(
+      filename = function() { paste0('CHETAH_gene_exp_', input$whichgene, '.png') },
+      content = function(file) {
+        png(file, width = 20, height = 12, res = 400, units = 'in')
+        print(geneExpr())
+        dev.off()
+      }
+    )
 }

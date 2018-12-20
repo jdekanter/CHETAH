@@ -19,10 +19,11 @@ Imports:
     bioDist,
     dendextend,
     cowplot,
-	  corrplot,
-	  grDevices,
-	  stats,
-	  graphics
+	corrplot,
+	grDevices,
+	stats,
+	graphics,
+	reshape2
 Depends:
     R (>= 3.5),
 	  ggplot2
