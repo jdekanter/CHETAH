@@ -10,6 +10,7 @@ server <- function(input, output, session) {
                   gplots::colorpanel(n = 50, low = '#f4f4f4', mid = "#ff9f19", high = '#d60000'))
     ## Cell type colors
     Clrs <- reactive({
+        req(chetah)
         colors <- c ('blue', 'gold', 'cyan3', 'navy',
                     'forestgreen', 'orange', 'darkolivegreen3',
                     'brown', 'green', 'purple','deepskyblue', 'cyan',
@@ -30,7 +31,7 @@ server <- function(input, output, session) {
             gray <- rep('gray70', M)
         }
         if (M > 36) colors <- grDevices::rainbow(M)
-        if(!input$colorsplits) {
+        if(!input$colornodes) {
             names(colors) <- nnodes
             names(gray) <- nodes
         } else {
@@ -52,7 +53,10 @@ server <- function(input, output, session) {
     }
     ## ----------------------------------- Render UI ---------------------------
     ## Extract classification
-    classification <- reactive({ Classify(chetah, input$conf_thresh) })
+    classification <- reactive({
+      req(input$conf_thresh, chetah)
+      Classify(chetah, input$conf_thresh)
+    })
     ## Select a node
     output$nodebutton <- renderUI ({
         req(chetah)
@@ -93,6 +97,7 @@ server <- function(input, output, session) {
     ## ----------------------------------- Tab 1 ---------------------------
     ## Classification t-SNE
     classTsne <- reactive({
+        req(classification(), coor)
         toplot <- data.frame(classification())
         colnames(toplot) <- 'Cell type'
         PlotTSNE(toplot = toplot, coor = coor, col = Clrs(),
@@ -109,7 +114,8 @@ server <- function(input, output, session) {
     )
     ## Classification Tree output
     classTree <- reactive({
-        if (input$colorsplits) interm <- TRUE else interm <- FALSE
+        req(Clrs())
+        if (input$colornodes) interm <- TRUE else interm <- FALSE
         if(interm) PlotTree(chetah = chetah, col_nodes = Clrs(), no_bgc = TRUE) else {
             PlotTree(chetah = chetah, col = Clrs()) + ggtitle('')
         }
@@ -123,6 +129,7 @@ server <- function(input, output, session) {
     )
     ## Calculate cell type percentage
     typestable <- reactive({
+        req(classification())
         types <- unique(classification())
         types <- c(types[!grepl('Node', types)], sort(types[grepl('Node', types)]))
         perc <- vector()
@@ -145,6 +152,7 @@ server <- function(input, output, session) {
     ## ----------------------------------- Tab 2 ---------------------------
     ## Plot colored classification tree
     confTree <- reactive({
+        req(Clrs(), input$whichnode)
         ## All black labels
         nodecl <- rep('#000000', length(Clrs()))
         names(nodecl) <- names(Clrs())
@@ -173,6 +181,7 @@ server <- function(input, output, session) {
     )
     ## Select the max confidence of a cell in the current node
     MaxConf <- reactive ({
+        req(input$whichnode)
         which <- as.numeric(input$whichnode)
         data <- chetah$conf_scores[[which]]
         maxs <- apply(data, 1, max)
@@ -184,6 +193,7 @@ server <- function(input, output, session) {
 
     ## Select current types incl nodes
     SlctNodes <- reactive ({
+        req(input$whichnode)
         which <- as.numeric(input$whichnode)
         nodes <- unlist(lapply(chetah$nodetypes[(which):length(chetah$conf_scores)], function (x) {
             all(names(x) %in% names(chetah$nodetypes[[which]]))
@@ -195,6 +205,7 @@ server <- function(input, output, session) {
 
     ## Select the input cell still in the current branch
     SlctCells <- reactive ({
+        req(SlctNodes, classification())
         cellnms <- names(classification())[classification() %in% SlctNodes()]
         return(cellnms)
     })
@@ -224,7 +235,7 @@ server <- function(input, output, session) {
 
     ## Observe plotly_event, but update to null, when new node is chosen: this doesn't happen automatically
     zoom <- reactive ({ plotly::event_data("plotly_relayout", source = 'conf') })
-    rv <- reactiveValues(prof = NULL)
+    rv <- reactiveValues(conf = NULL)
     observeEvent(zoom(), {
         rv$conf <- zoom()
     })
@@ -234,6 +245,7 @@ server <- function(input, output, session) {
 
     ## Confidence heatmap
     confHM <- reactive({
+        req(SlctCells(), MaxConf(), input$whichnode, rv)
         ## select the data and sort
         which <- as.numeric(input$whichnode)
         data <- chetah$prof_scores[[which]]
@@ -291,7 +303,7 @@ server <- function(input, output, session) {
     })
     ## Profiel score t-SNE
     profTsne <- reactive({
-        req(typecorrect())
+        req(typecorrect(), chetah, rv2)
         toplot <- data.frame(chetah$prof_scores[[as.numeric(input$whichnode)]][ ,input$whichtype, drop = FALSE],
                              classification())
         colnames(toplot) <- c('Profile score', 'cell type')
@@ -317,7 +329,7 @@ server <- function(input, output, session) {
     )
     ## Profile score Boxplot
     profBox <- reactive({
-        req(typecorrect())
+        req(typecorrect(), chetah)
         toplot <- as.data.frame(chetah$prof_scores[[as.numeric(input$whichnode)]][ ,input$whichtype, drop = FALSE])
         clas   <- as.data.frame(chetah$classification)
         event  <- plotly::event_data("plotly_relayout", source = 'prof')
@@ -371,7 +383,7 @@ server <- function(input, output, session) {
     ## ----------------------------------- Tab4  ---------------------------
     ## Gene heatmap
     exprHM <- reactive({
-        req(typecorrect())
+        req(typecorrect(), classification())
         ## select the data and sort
         which <- as.numeric(input$whichnode)
         ## Cells
@@ -431,7 +443,7 @@ server <- function(input, output, session) {
     output$genesTree <- renderPlot({ celltTree()() })
     ## ----------------------------------- Tab5  ---------------------------
     geneExpr <- reactive({
-      req(input$whichgene)
+      req(input$whichgene, classification())
         genes <- counts[input$whichgene, ]
         #if(!is.null(log)) genes <- log2(genes + 1)
         genes <- cbind.data.frame(genes, as.data.frame(classification()))

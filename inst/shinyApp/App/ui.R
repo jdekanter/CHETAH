@@ -43,7 +43,7 @@ h3 {
                       top = '106px',
                       h1("OPTIONS"),
                       ## Color the intermediate types?
-                      checkboxInput(inputId = "colorsplits",
+                      checkboxInput(inputId = "colornodes",
                                     label = p('Color the intermediate types', class = 'opt'),
                                     value = FALSE),
                       ## Conf threshhold for which cells to classify
@@ -51,13 +51,13 @@ h3 {
                                    value = 0.1, step = 0.01),
 
                       conditionalPanel(
-                        condition = "input.MP != 'Genes used by CHETAH' && input.MP != 'Differentially expressed genes'",
+                        condition = "input.MP != 'Genes used by CHETAH' && input.MP != 'Differentially expressed genes' && input.MP != 'Expression per gene'",
                         ## t-SNE point size
                         numericInput("ptsize", label = p("Point Size", class = 'opt'),
                                      value = 1.5, step = 0.5)
                       ),
                       conditionalPanel(
-                        condition = "input.MP != 'Classification' && input.MP != 'Differentially expressed genes'",
+                        condition = "input.MP != 'Classification' && input.MP != 'Differentially expressed genes' && input.MP != 'Expression per gene'",
                         ## Which node to display 2
                         uiOutput(outputId = "nodebutton")
                       ),
