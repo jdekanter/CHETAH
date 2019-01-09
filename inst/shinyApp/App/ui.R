@@ -51,13 +51,13 @@ h3 {
                                    value = 0.1, step = 0.01),
 
                       conditionalPanel(
-                        condition = "input.MP != 'Genes used by CHETAH' && input.MP != 'Differentially expressed genes' && input.MP != 'Expression per gene'",
+                        condition = "input.MP != 'Genes used by CHETAH' && input.MP != 'Expression per gene'",
                         ## t-SNE point size
                         numericInput("ptsize", label = p("Point Size", class = 'opt'),
                                      value = 1.5, step = 0.5)
                       ),
                       conditionalPanel(
-                        condition = "input.MP != 'Classification' && input.MP != 'Differentially expressed genes' && input.MP != 'Expression per gene'",
+                        condition = "input.MP != 'Classification' && input.MP != 'Expression per gene'",
                         ## Which node to display 2
                         uiOutput(outputId = "nodebutton")
                       ),
@@ -67,7 +67,7 @@ h3 {
                         uiOutput(outputId = "typebutton")
                       ),
                       conditionalPanel(
-                        condition = "input.MP == 'Genes used by CHETAH' || input.MP == 'Differentially expressed genes'",
+                        condition = "input.MP == 'Genes used by CHETAH'",
                         ## Scale the matrix 3
                         checkboxInput(inputId = "scaling",
                                       label = p('Scale Matrix', class = 'opt'),
@@ -75,23 +75,20 @@ h3 {
                         ## Number of genes 3
                         numericInput(inputId = "n_genes",
                                      label = p('# of genes', class = 'opt'),
-                                     value = 200, step = 1, min = 2, max = 200),
+                                     value = 60, step = 1, min = 2, max = 200),
                         ## Height of the matrix 3
                         numericInput(inputId = "lettersize",
                                      label = p('Matrix label size', class = 'opt'),
                                      value = 10, step = 0.5, min = 1, max = 20)
                       ),
                       conditionalPanel(
-                        condition = "input.MP == 'Differentially expressed genes'",
-                        ## Which type to display in 4
-                        uiOutput(outputId = "typebutton_DE")
-
-                      ),
-                      conditionalPanel(
                         condition = "input.MP == 'Genes used by CHETAH'",
                         ## Height of the matrix 3
                         checkboxInput(inputId = "largediff",
                                       label = p('Genes with max. difference in the INPUT', class = 'opt'),
+                                      value = TRUE),
+                        checkboxInput(inputId = "inclnodes",
+                                      label = p('Add intermediate types', class = 'opt'),
                                       value = FALSE)
                       ),
                       conditionalPanel(

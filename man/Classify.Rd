@@ -6,7 +6,7 @@
 NOTE: In case of bulk reference profiles: only the correlations will be used,
 as the data does not allow for profile or confidence scores to be calculated.}
 \usage{
-Classify(chetah, thresh)
+Classify(chetah, thresh, return_clas = FALSE)
 }
 \arguments{
 \item{chetah}{the CHETAH object}
@@ -17,6 +17,8 @@ n (almost) no cells to be classified. \cr
 \emph{recommended}: between 0.1 (fairly confident) and 1 (very confident)}
 }
 \value{
+_clas Instead of returning the chetah object, only return the classification vector
+
 a charachter vector of the cell types with the names of the cells
 }
 \description{
@@ -26,8 +28,8 @@ as the data does not allow for profile or confidence scores to be calculated.
 }
 \examples{
 ## Classify all cells
-chetah$classification <- Classify(chetah, 0)
+chetah <- Classify(chetah, 0)
 
 ## Classify only cells with a very high confidence
-chetah$classifcation <- Classify(chetah, 1)
+chetah <- Classify(chetah, 1)
 }

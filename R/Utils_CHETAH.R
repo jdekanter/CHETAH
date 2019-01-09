@@ -91,7 +91,7 @@
 #' Some input cells will reach the leaf nodes of the ct (the pre-defined cell types),
 #' these classifications are called \strong{final types}
 #' For other cells, assignment will stop in a node, if no enough evidence is available
-#' to assign that cell to one of the branches of that node. These classifcations
+#' to assign that cell to one of the branches of that node. These classifications
 #' are called \strong{intermediate types}.  \cr
 #' @export
 #' @importFrom bioDist spearman.dist
@@ -185,7 +185,7 @@ CHETAHclassifier <- function (input,
                     confidencescores = list(), # a list of the confidence scores per node
                     genes = list(), # The gene names that are used in each node
                     counter = 0, # to keep track of the node depth/number
-                    tree = NULL, # will be filled with the classifcation tree
+                    tree = NULL, # will be filled with the classification tree
                     p_thresh = p_thresh, # the p-value threshold for wilcox
                     fc_thresh = fc_thresh, # the fold-change threshold for wilcox (or fc, when fix_ngenes = FALSE)
                     pc_thresh = pc_thresh, # the % of expression threshold for wilcox
@@ -244,9 +244,8 @@ CHETAHclassifier <- function (input,
                     parameters = parameters)
 
     ## Finally, perform the actual classification
-    classification <- Classify(chetah = output,
+    output <- Classify(chetah = output,
                                thresh = thresh)
-    output$classification <- classification
 
     if (plot.tree) PlotTree(chetah = output)
     return(output)
@@ -254,7 +253,7 @@ CHETAHclassifier <- function (input,
 ## -----------------------------------------------------------------------------
 
 # Called by the CHETAHclassifier. Determines the branches
-# of the current node of the classifcation tree,
+# of the current node of the classification tree,
 # calls ScoreNode and reruns itself on the next-higher node(s).
 # The fact that this function is recursive,
 # makes it possible to do all calculations from top to bottom
@@ -601,17 +600,18 @@ doCorrelation <- function(ref_profiles, genes, input, all_ref_cells,
 #' Selecting 0 will classify all cells, whereas 2 will result i
 #' n (almost) no cells to be classified. \cr
 #' \emph{recommended}: between 0.1 (fairly confident) and 1 (very confident)
+#' @return_clas Instead of returning the chetah object, only return the classification vector
 #' @return
 #' a charachter vector of the cell types with the names of the cells
 #' @export
 #'
 #' @examples
 #' ## Classify all cells
-#' chetah$classification <- Classify(chetah, 0)
+#' chetah <- Classify(chetah, 0)
 #'
 #' ## Classify only cells with a very high confidence
-#' chetah$classifcation <- Classify(chetah, 1)
-Classify <- function(chetah, thresh) {
+#' chetah <- Classify(chetah, 1)
+Classify <- function(chetah, thresh, return_clas = FALSE) {
 
     ## Get parameters
     if(!is.na(chetah$conf_scores[[1]][1])) {
@@ -626,7 +626,8 @@ Classify <- function(chetah, thresh) {
     classification <- nodeDown(conf = conf, prof = prof, node = 1,
                                thresh = thresh, nodetypes = nodetypes)
     names(classification) <- rownames(prof[[1]])
-    return(classification)
+    chetah$classification <- classification
+    if (return_clas) return(classification) else return(chetah)
 }
 
 ## ---------------------------------
@@ -668,7 +669,7 @@ MeanRef <- function (input,
 }              ## MeanRef
 ## ---------------------------------------------------------------------------------------------------------------------------
 
-#' Plots the chetah classifcation tree with nodes numbered
+#' Plots the chetah classification tree with nodes numbered
 #'
 #' @param chetah a chetah object
 #' @param col a vector of colors, with the names of the reference cell types
@@ -679,7 +680,7 @@ MeanRef <- function (input,
 #' Decreasing the former further is usefull when the labels are cut of the plot (default = c(-0,25, 01)).
 #' @param labelsize the size of the intermediate and leaf node labels (default = 6)
 #' @return
-#' A ggplot object of the classifcation tree
+#' A ggplot object of the classification tree
 #' @export
 #' @import ggplot2
 #' @importFrom dendextend color_branches
@@ -936,7 +937,7 @@ PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
 #' PlotCHETAH(chetah = chetah, coor = tsne, tree = FALSE)
 PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
                        tree = TRUE, pt.size = 1, return_col = FALSE, col = NULL) {
-    ## Determine colors: if not custom, the predefined ones. If too many cell types: rainbow.
+    ## Determine colors: if not custom, use the predefined ones. If too many cell types: rainbow.
     if(is.null(col)) {
         colors <- c ('blue', 'gold', 'cyan3', 'navy',
                    'forestgreen', 'orange', 'darkolivegreen3',
@@ -947,7 +948,7 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
                    'lightcyan', 'midnightblue', 'maroon1', 'orange3', 'palegreen',
                    'palevioletred1', 'peru', 'seagreen1', 'red3', 'snow2',
                    'steelblue1', 'turquoise')
-        leaf_nodes <- names(chetah$nodetypes[[1]])
+        leaf_nodes <- c(names(chetah$nodetypes[[1]]), unique(chetah$classification)[!(unique(chetah$classification) %in% chetah$nodetypes[[1]])])
         int_nodes <- paste0("Node", seq_len(length(chetah$nodetypes)))
         M <- max(length(int_nodes), length(leaf_nodes))
         if (length(int_nodes) < 24)   {
@@ -1168,6 +1169,52 @@ nodeDown <- function(conf, prof, node, thresh, nodetypes, prev_clas = NULL) {
 equal.genes <- function(inp, ref) {
     common <- intersect(rownames(inp), rownames(ref))
     ref <- ref[common, ]
+}
+### ---------------------------------------------------------------------------
+## Select all the final AND intermediate types below a node
+SelectNodeTypes <- function (chetah, whichnode) {
+  nodes <- unlist(lapply(chetah$nodetypes[(whichnode):length(chetah$nodetypes)], function (x) {
+    all(names(x) %in% names(chetah$nodetypes[[whichnode]]))
+  }))
+  nodes <- paste0('Node', ((whichnode):length(chetah$nodetypes))[nodes])
+  alltypes <- c(nodes, names(chetah$nodetypes[[whichnode]]))
+  return(alltypes)
+}
+### ---------------------------------------------------------------------------
+#' In the CHETAH classification, replace the name of a Node
+#' and all the names of the final and intermediate types under that Node.
+#'
+#' @param chetah a chetah object
+#' @param whichnode the number of the Node
+#' @param replacement a character vector that replaces the names under the selected Node
+#' @param nodes_exclude \emph{optional} numbers of the Nodes under the selected Node, that should \strong{NOT} be replaced
+#' @param node_only only rename the Node itself, without affecting the types under that Node
+#' @param return_clas Instead of returning the chetah object, only return the classification vector
+#'
+#' @return
+#' The chetah object with the new classification or if `return_clas = TRUE` the classification vector.
+#' @export
+#'
+#' @examples
+#' In the example data replace all T-cell subtypes by "T cell"
+#' chetah <- RenameBelowNode(chetah = chetah, whichnode = 7, replacement = "T cell")
+RenameBelowNode <- function(chetah, whichnode, replacement, nodes_exclude = NULL, node_only = FALSE, return_clas = FALSE) {
+    classification <- chetah$classification
+    if (node_only) {
+        classification[classification == paste0("Node", whichnode)] <- replacement
+    } else {
+        replace <- SelectNodeTypes(chetah = chetah, whichnode = whichnode)
+        if (!is.null(nodes_exclude)) {
+            exclude <- vector()
+            for (number in 1:length(nodes_exclude)) {
+                exclude <- c(exclude, SelectNodeTypes(chetah = chetah, whichnode = nodes_exclude[number]))
+            }
+        replace <- replace[!(replace %in% exclude)]
+        }
+        classification[classification %in% replace] <- replacement
+        chetah$classification <- classification
+        if (return_clas) return(classification) else return(chetah)
+    }
 }
 ### -----------------
 ch_env <- new.env(parent = emptyenv())

@@ -2,7 +2,7 @@
 % Please edit documentation in R/Utils_CHETAH.R
 \name{PlotTree}
 \alias{PlotTree}
-\title{Plots the chetah classifcation tree with nodes numbered}
+\title{Plots the chetah classification tree with nodes numbered}
 \usage{
 PlotTree(chetah, col = NULL, col_nodes = NULL, return = FALSE,
   no_bgc = FALSE, plot_limits = c(-0.4, 0.1), labelsize = 6)
@@ -24,10 +24,10 @@ Decreasing the former further is usefull when the labels are cut of the plot (de
 \item{labelsize}{the size of the intermediate and leaf node labels (default = 6)}
 }
 \value{
-A ggplot object of the classifcation tree
+A ggplot object of the classification tree
 }
 \description{
-Plots the chetah classifcation tree with nodes numbered
+Plots the chetah classification tree with nodes numbered
 }
 \examples{
 PlotTree(chetah = chetah)

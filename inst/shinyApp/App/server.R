@@ -55,7 +55,7 @@ server <- function(input, output, session) {
     ## Extract classification
     classification <- reactive({
       req(input$conf_thresh, chetah)
-      Classify(chetah, input$conf_thresh)
+      Classify(chetah, input$conf_thresh, return_clas = TRUE)
     })
     ## Select a node
     output$nodebutton <- renderUI ({
@@ -383,35 +383,45 @@ server <- function(input, output, session) {
     ## ----------------------------------- Tab4  ---------------------------
     ## Gene heatmap
     exprHM <- reactive({
-        req(typecorrect(), classification())
-        ## select the data and sort
+        req(typecorrect(), classification(), SlctNodes())
         which <- as.numeric(input$whichnode)
-        ## Cells
-        branchtypes <- sort(chetah$nodetypes[[which]])
-        cells <- classification()[classification() %in% names(branchtypes)]
+        ## Select cells
+        branchtypes <- names(sort(chetah$nodetypes[[which]]))
+        if (input$inclnodes) {
+            branchtypes <- c(branchtypes, SlctNodes()[grepl("Node", SlctNodes())])
+        }
+        cells <- classification()[classification() %in% branchtypes]
         annotation_col <- data.frame('celltypes' = cells)
-        cells <- cells[order(match(cells, names(branchtypes)))]
-        ## genes
+        cells <- cells[order(match(cells, branchtypes))]
+        validate(
+          need(cells > 0, "
+               No cells to display in this Node. Lowering the 'Confidence Threshold' might work.
+               Please check the 'Classification' tab to see the classification with the current 'Confidence Threshold'")
+        )
+        ## Select Genes
         if (input$largediff) {
+            finaltypes <- sort(chetah$nodetypes[[which]])
             lh_genes <- chetah$genes[[which]][[input$whichtype]]
             data <- as.matrix(counts[names(lh_genes), names(cells)])
-            r_branch <- apply(data[ ,names(cells)[cells %in% names(branchtypes)[branchtypes == 1]]], 1, mean)
-            l_branch <- apply(data[ ,names(cells)[cells %in% names(branchtypes)[branchtypes == 2]]], 1, mean)
+            r_branch <- apply(data[ ,names(cells)[cells %in% names(finaltypes)[finaltypes == 1]]], 1, mean)
+            l_branch <- apply(data[ ,names(cells)[cells %in% names(finaltypes)[finaltypes == 2]]], 1, mean)
             lh_genes <- lh_genes[names(sort(abs(r_branch - l_branch), decreasing = TRUE))[seq_len(input$n_genes)]]
             lh_genes <- sort(lh_genes)
+            ## If no cells in one of the two branches: Don't sort
+            if (length(lh_genes) == 0) lh_genes <- sort(chetah$genes[[which]][[input$whichtype]][seq_len(input$n_genes)])
         } else {
             lh_genes <- sort(chetah$genes[[which]][[input$whichtype]][seq_len(input$n_genes)])
         }
-        lh_genes[lh_genes == 0] <- 'low'
-        lh_genes[lh_genes == 1] <- 'high'
-        annotation_row <- data.frame('High_Low' = lh_genes)
+        lh_genes[lh_genes == 0] <- 'lowly'
+        lh_genes[lh_genes == 1] <- 'highly'
+        annotation_row <- data.frame('Expressed_in_this_type' = lh_genes)
         genes <- names(lh_genes)
         data <- as.matrix(counts[genes, names(cells)])
 
         hl_clrs <- c('black', 'gray80')
-        names(hl_clrs) <- c('low', 'high')
-        ann_col <- list('celltypes' = Clrs()[names(branchtypes)],
-                        'High_Low' = hl_clrs)
+        names(hl_clrs) <- c('lowly', 'highly')
+        ann_col <- list('celltypes' = Clrs()[branchtypes],
+                        'Expressed_in_this_type' = hl_clrs)
         if (input$scaling) scale <- 'row' else scale <- 'none'
         ## Plot
         pheatmap::pheatmap(data,
@@ -424,7 +434,8 @@ server <- function(input, output, session) {
                            annotation_col = annotation_col,
                            annotation_row = annotation_row,
                            annotation_colors = ann_col,
-                           fontsize_row = input$lettersize)
+                           fontsize_row = input$lettersize,
+                           annotation_names_row = FALSE)
     })
     output$exprHM <- renderPlot({
         if ('RStudioGD' %in% names(dev.list())) dev.off(which = which(names(dev.list()) == 'RStudioGD') + 1)

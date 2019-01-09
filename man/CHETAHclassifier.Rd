@@ -117,7 +117,7 @@ correlations and calculation of profile and confidence scores.
 Some input cells will reach the leaf nodes of the ct (the pre-defined cell types),
 these classifications are called \strong{final types}
 For other cells, assignment will stop in a node, if no enough evidence is available
-to assign that cell to one of the branches of that node. These classifcations
+to assign that cell to one of the branches of that node. These classifications
 are called \strong{intermediate types}.  \cr
 }
 \examples{

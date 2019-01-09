@@ -218,13 +218,13 @@ __The confidence threshold can be adjusted in order to classify more or fewer ce
   
 For example, to classify all cells:
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-chetah$classification <- Classify(chetah, 0)
+chetah <- Classify(chetah, 0)
 PlotCHETAH(chetah = chetah, coor = tsne)
 ```
 
 Conversely, to only classify cells with very high confidence:
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-chetah$classification <- Classify(chetah, 0.8)
+chetah <- Classify(chetah, 0.8)
 PlotCHETAH(chetah = chetah, coor = tsne)
 ```
   
