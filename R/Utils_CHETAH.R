@@ -136,7 +136,7 @@ CHETAHclassifier <- function (input,
             !(is.null(ref_cells)) | !(is.null(ref_profiles)),
             if (!is.null(ref_types)) is.character(ref_types) | is.vector(ref_types) else TRUE)
 
-    if (!is.list(ref_cells) & is.null(ref_types)) {
+    if (!is.list(ref_cells) & is.null(ref_types) & is.null(ref_profiles)) {
         stop("Please provide a vector of the reference cell types in 'ref_types'")
     }
     if (!is.list(ref_cells) & !is.null(ref_types)) {
@@ -144,9 +144,9 @@ CHETAHclassifier <- function (input,
             stop("the names of 'ref_cells' must be excatly the same as the colnames of 'ref_cells'")
         }
     }
-    if (!is.null(ref_profiles)) if (sum(is.na(ref_profiles)) != 0) stop("'ref_profiles' cannot hold NA values'")
-    if (is.matrix(ref_cells)) if (sum(is.na(ref_cells)) != 0) stop("'ref_cells' cannot hold NA values'")
-    if (is.list(ref_cells)) if (sum(unlist(lapply(ref_cells, function (x) sum(is.na(x))))) != 0) stop("'ref_cells' cannot hold NA values'")
+    if (!is.null(ref_profiles)) if (sum(is.na(ref_profiles)) != 0) stop("'ref_profiles' cannot contain NA values'")
+    if (is.matrix(ref_cells)) if (sum(is.na(ref_cells)) != 0) stop("'ref_cells' cannot contain NA values'")
+    if (is.list(ref_cells)) if (sum(unlist(lapply(ref_cells, function (x) sum(is.na(x))))) != 0) stop("'ref_cells' cannot contain NA values'")
 
     cat('Preparing data....    \n')
     if (is.null(ref_cells)) {
@@ -1168,6 +1168,13 @@ nodeDown <- function(conf, prof, node, thresh, nodetypes, prev_clas = NULL) {
 ## select the common genes of the input and the reference
 equal.genes <- function(inp, ref) {
     common <- intersect(rownames(inp), rownames(ref))
+    if (length(common) == 0) {
+        stop("Non of the genes names (rownames) in the reference: ",
+  paste0(rownames(ref)[1:10],  ", "),
+  "\noverlapped with those of the input:",
+  paste0(rownames(inp)[1:10], ", "),
+  "\n Make sure you are using the same type of gene ids (ensemble, symbol, etc) for both datasets.")
+    }
     ref <- ref[common, ]
 }
 ### ---------------------------------------------------------------------------
