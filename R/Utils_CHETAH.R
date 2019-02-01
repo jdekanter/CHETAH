@@ -164,13 +164,15 @@ CHETAHclassifier <- function (input,
     }
 
     ## Same genes in reference as input
-    if (!setequal(rownames(input), rownames(ref_cells))) {
-        ref_cells <- equal.genes(input, ref_cells)
+    if (!is.null(ref_cells)) {
+      if (!setequal(rownames(input), rownames(ref_cells))) {
+          ref_cells <- equal.genes(input, ref_cells)
+      }
+    } else {
+      if (!setequal(rownames(input), rownames(ref_profiles))) {
+         ref_profiles <- equal.genes(input, ref_profiles)
+      }
     }
-    if (!setequal(rownames(input), rownames(ref_profiles))) {
-       ref_profiles <- equal.genes(input, ref_profiles)
-    }
-
     ## Make reference_profiles (one average profile per reference cell type):
     if (is.null(ref_profiles)) {
         ref_profiles <- MeanRef(ref_cells, method = "mean", ref_types = ref_types)
