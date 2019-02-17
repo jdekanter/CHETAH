@@ -28,3 +28,7 @@ The chetah object with the new classification or if `return_clas = TRUE` the cla
 In the CHETAH classification, replace the name of a Node
 and all the names of the final and intermediate types under that Node.
 }
+\examples{
+## In the example data replace all T-cell subtypes by "T cell"
+chetah <- RenameBelowNode(chetah = chetah, whichnode = 7, replacement = "T cell")
+}

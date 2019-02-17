@@ -2,15 +2,15 @@ Package: CHETAH
 Title: Fast and accurate scRNA-seq cell type identification
 Type: Package
 Version: 0.99.0
-Date: 23-05-2018
+Date: 21-02-2019
 Authors@R: c(person("Jurrian", "de Kanter", email = "jurriandekanter@gmail.com",  role = c("aut", "cre")),
              person("Philip", "Lijnzaad", email = "p.lijnzaad@prinsesmaximacentrum.nl", role = c("aut")))
 Description: CHETAH is a accurate, selective and fast scRNA-seq classifier. 
-	Classification is guided by a reference dataset,
+	  Classification is guided by a reference dataset,
     preferentially also a scRNA-seq dataset. By hierarchical clustering of the reference data, CHETAH creates
-	a classification tree that enables a step-wise, top-to-bottom classification. Using a novel stopping rule,
-	CHETAH classifies the input cells to the cell types of the references and to "intermediate types": more general
-	classifications that ended in an intermediate node of the tree.
+	  a classification tree that enables a step-wise, top-to-bottom classification. Using a novel stopping rule,
+	  CHETAH classifies the input cells to the cell types of the references and to "intermediate types": more general
+	  classifications that ended in an intermediate node of the tree.
 Imports:
     gplots,
     shiny,
@@ -19,26 +19,26 @@ Imports:
     bioDist,
     dendextend,
     cowplot,
-	corrplot,
-	grDevices,
-	stats,
-	graphics,
-	reshape2
+  	corrplot,
+  	grDevices,
+  	stats,
+  	graphics,
+  	reshape2
 Depends:
     R (>= 3.5),
 	  ggplot2
 License: file LICENSE
 Encoding: UTF-8
 biocViews: 
-	Classification,
-	RNASeq,
-	SingleCell,
-	Clustering
+  	Classification,
+  	RNASeq,
+  	SingleCell,
+  	Clustering
 RoxygenNote: 6.1.1
 Suggests: 
-	knitr,
-  rmarkdown,
-  Matrix
+  	knitr,
+    rmarkdown,
+    Matrix
 VignetteBuilder: knitr
 LazyData: true
 BugReports: https://github.com/jdekanter/CHETAH
