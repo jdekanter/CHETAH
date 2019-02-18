@@ -1259,6 +1259,8 @@ ch_env <- new.env(parent = emptyenv())
 #' }
 CHETAHshiny <- function (chetah, coor, counts) {
   ## Search for the shinyApp in the package directory
+  saved.stringsAsFactors <- options()$stringsAsFactors
+  options(stringsAsFactors = TRUE)
   appDir <- system.file("shinyApp", "App", package = "CHETAH")
   if (appDir == "") {
     stop("Could not find example directory. Try re-installing `chetah`.", call. = FALSE)
@@ -1269,4 +1271,5 @@ CHETAHshiny <- function (chetah, coor, counts) {
   ch_env$counts <- counts
   rm(chetah, coor, counts)
   shiny::runApp(appDir, display.mode = "normal")
+  options(stringsAsFactors=saved.stringsAsFactors)
 }

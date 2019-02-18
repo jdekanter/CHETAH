@@ -8,7 +8,7 @@ Download buttons are present below each plot.
 (These functions work better in a web-browser: click 'Open in Browser' on top of the Rstudio-window.)
 Each t-SNE plot is interactive, so you can zoom in and out. Other plots will adapt
 to only show information of the cells in the currently selected t-SNE window.
-See the 'Info' tab for info about the method", duration = 20)
+See the 'Info' tab for info about the method", duration = 60)
   })
 
   ## ----------------------------------- Select colors ------------------
