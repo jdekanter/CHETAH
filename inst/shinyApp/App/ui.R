@@ -112,7 +112,10 @@ Each cell is colored according to the CHETAH cell type.
 As in any plot, the strictness of the classification
 can be changed using 'Confidence Threshold' on the left panel.
 Also, inferred intermediate types (nodes in the tree below)
-can be colored with 'Color the intermediate types'",
+can be colored with 'Color the intermediate types'.
+
+Please note that cells labeled: 'Unknown' are cells for which
+classification stopped in Node0",
                                               h3('CHETAH classification')
                                            ),
                                            plotly::plotlyOutput(outputId = 'classTsne', height = 600),

@@ -22,7 +22,7 @@
 #' ref_types must be a vector of the cell types.
 #' The names must correspond to the column names of \code{ref_cells}, in the same order!.
 #' @param ref_profiles \emph{optional} In case of bulk-RNA seq or micro-arrays,
-#' an expression matrix with one (average) reference expression profile per cell type.
+#' an expression matrix with one (average) reference expression profile per cell type in the columns.
 #' @param thresh the initial confidence threshold (can be changed later
 #' by \code{\link{Classify}})
 #' @param gs_method method for gene selection. In every node of the tree: \cr
@@ -137,12 +137,12 @@ CHETAHclassifier <- function (input,
             if (!is.null(ref_types)) is.character(ref_types) | is.vector(ref_types) else TRUE)
 
   if (!is.list(ref_cells) & is.null(ref_types) & is.null(ref_profiles)) {
-    stop("Please provide a vector of the reference cell types in 'ref_types'")
+      stop("Please provide a vector of the reference cell types in 'ref_types'")
   }
   if (!is.list(ref_cells) & !is.null(ref_types)) {
-    if (!all.equal(colnames(ref_cells), names(ref_types))) {
-      stop("the names of 'ref_cells' must be excatly the same as the colnames of 'ref_cells'")
-    }
+      if (!all.equal(colnames(ref_cells), names(ref_types))) {
+          stop("the names of 'ref_cells' must be excatly the same as the colnames of 'ref_cells'")
+      }
   }
   if (!is.null(ref_profiles)) if (sum(is.na(ref_profiles)) != 0) stop("'ref_profiles' cannot contain NA values'")
   if (is.matrix(ref_cells)) if (sum(is.na(ref_cells)) != 0) stop("'ref_cells' cannot contain NA values'")
@@ -150,32 +150,40 @@ CHETAHclassifier <- function (input,
 
   cat('Preparing data....    \n')
   if (is.null(ref_cells)) {
-    warning("Running without reference cells: classification only based on correlations \n", immediate. = TRUE)
+      warning("Running without reference cells: classification only based on correlations \n", immediate. = TRUE)
   }
 
   ## If ref_cells is a list, make it one matrix and construct ref_types
   if (is.list(ref_cells)) {
-    ref_types <- vector()
-    for (i in seq_len(length(ref_cells))) {
-      ref_types <- c(ref_types, rep(names(ref_cells)[i], ncol(ref_cells[[i]])))
-    }
-    ref_cells <- do.call(cbind, ref_cells)
-    names(ref_types) <-colnames(ref_cells)
+      ref_types <- vector()
+      for (i in seq_len(length(ref_cells))) {
+          ref_types <- c(ref_types, rep(names(ref_cells)[i], ncol(ref_cells[[i]])))
+      }
+      ref_cells <- do.call(cbind, ref_cells)
+      names(ref_types) <- colnames(ref_cells)
   }
 
-  ## Same genes in reference as input
+  ## Same genes in reference as input & extract cell type names
   if (!is.null(ref_cells)) {
-    if (!setequal(rownames(input), rownames(ref_cells))) {
-      ref_cells <- equal.genes(input, ref_cells)
-    }
+      if (!setequal(rownames(input), rownames(ref_cells))) {
+          ref_cells <- equal.genes(input, ref_cells)
+      }
+      uniq_ct <- unique(ref_types)
   } else {
-    if (!setequal(rownames(input), rownames(ref_profiles))) {
-      ref_profiles <- equal.genes(input, ref_profiles)
-    }
+      if (!setequal(rownames(input), rownames(ref_profiles))) {
+          ref_profiles <- equal.genes(input, ref_profiles)
+      }
+      uniq_ct <- colnames(ref_profiles)
+  }
+  if (any(grepl("Node", uniq_ct))) {
+      stop("Please don't use 'Node' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'node'")
+  }
+  if (any(grepl("Unknown", uniq_ct))) {
+      stop("Please don't use 'Unknown' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'unknown'")
   }
   ## Make reference_profiles (one average profile per reference cell type):
   if (is.null(ref_profiles)) {
-    ref_profiles <- MeanRef(ref_cells, method = "mean", ref_types = ref_types)
+      ref_profiles <- MeanRef(ref_cells, method = "mean", ref_types = ref_types)
   }
 
   ## Make an environment to store the classification information and variables in
@@ -695,6 +703,7 @@ PlotTree <- function(chetah, col = NULL,
                      no_bgc = FALSE,
                      plot_limits = c(-0.4, 0.1),
                      labelsize = 6) {
+
   ## Extract parameters + make dendrogram
   lbls <- chetah$tree$labels
   ord <- chetah$tree$order
@@ -711,8 +720,10 @@ PlotTree <- function(chetah, col = NULL,
   if(!is.null(col_nodes)) {
     col_n <- col_nodes[grepl("Node", names(col_nodes))]
     names(col_n) <- gsub("Node", "", names(col_n))
-    col_n <- col_n[order(as.numeric(names(col_n)))][seq_len(nrow(chetah$nodecoor))]
-    col_r <- col_n[seq_len(nrow(chetah$nodecoor))]
+    col_n <- col_n[order(as.numeric(names(col_n)))][seq_len(nrow(chetah$nodecoor)) - 1]
+    col_n <- c(col_nodes[grepl("Unknown", names(col_nodes))], col_n)
+    names(col_n)[1] <- 0
+    col_r <- col_n
     alpha1 <- 0.2
   } else {
     col_n <- rep("black", nrow(chetah$nodecoor))
@@ -739,7 +750,7 @@ PlotTree <- function(chetah, col = NULL,
     annotate(geom = "text",
              x = chetah$nodecoor[, "x"],
              y = chetah$nodecoor[, "y"],
-             label = seq_len(nrow(chetah$nodecoor)),
+             label = c(0, seq_len(nrow(chetah$nodecoor) - 1)),
              size = labelsize, fontface = "bold",
              col = col_n) +
     ylim(plot_limits[1]*maxh, maxh+plot_limits[2]*maxh) +
@@ -837,36 +848,13 @@ PlotTSNE <- function (toplot, coor, col = NULL, return = FALSE,
 
   ## Define plotting limits
   if (!is.null(x_limits)) {
-    plot <- plot + lims(x = c(x_limits[1]-1, x_limits[2]+1)) }
+    plot <- plot + lims(x = c(x_limits[1]-(0.01*x_limits[1]), x_limits[2]+(0.01*x_limits[2]))) }
   if (!is.null(y_limits)) {
-    plot <- plot + lims(y = c(y_limits[1]-1, y_limits[2]+1)) }
+    plot <- plot + lims(y = c(y_limits[1]-(0.01*y_limits[1]), y_limits[2]+(0.01*y_limits[2]))) }
   if (return) return(plot) else print(plot)
 }
 ## ----------------------------------------------------------------------------
-#' Plot boxplots grouped by a class variable
-#'
-#' @param toplot a numeric variable. When provided as a dataframe,
-#'  the colname will be used a a title
-#' @param class a factor of the length of \code{toplot}
-#' to indicate the groups
-#' @param col a character vector of colors, with the
-#' names of the factor levels
-#' @param grad_col if defined, the jittered points of
-#' the individual values of each cell behind
-#' the boxplot will be colored by these gradient colors
-#' based on their value
-#' @param limits the limits of \code{toplot}
-#' @param return instead of printing, return the ggplot object
-#'
-#' @return
-#' A ggplot object
-#' @import ggplot2
-#' @importFrom grDevices rgb
-#' @export
-#' @examples
-#' CD8 <- as.matrix(data_mel['CD8A', ])
-#' types <- chetah$classification
-#' PlotBox(toplot = CD8, class = types)
+# Plot boxplots grouped by a class variable
 PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
                     limits = NULL, return = FALSE) {
 
@@ -939,6 +927,7 @@ PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
 #' PlotCHETAH(chetah = chetah, coor = tsne, tree = FALSE)
 PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
                        tree = TRUE, pt.size = 1, return_col = FALSE, col = NULL) {
+
   ## Determine colors: if not custom, use the predefined ones. If too many cell types: rainbow.
   if(is.null(col)) {
     colors <- c ('blue', 'gold', 'cyan3', 'navy',
@@ -951,7 +940,7 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
                  'palevioletred1', 'peru', 'seagreen1', 'red3', 'snow2',
                  'steelblue1', 'turquoise')
     leaf_nodes <- names(chetah$nodetypes[[1]])
-    int_nodes <- paste0("Node", seq_len(length(chetah$nodetypes)))
+    int_nodes <- c("Unknown", paste0("Node", seq_len(length(chetah$nodetypes))))
 
     ## Add other names, in case user renamed types
     extra_nodes <- unique(chetah$classification)[!(unique(chetah$classification) %in% names(chetah$nodetypes[[1]]))]
@@ -980,7 +969,12 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
   } else col <- col
 
   ## Plot
-  plot1 <- PlotTSNE(toplot = chetah$classification, coor = coor,
+  toplot <- chetah$classification
+  u_toplot <- unique(toplot)
+  toplot <- factor(toplot, levels = c(sort(u_toplot[!grepl("Node|Unknown", u_toplot)]),
+                                      u_toplot[grepl("Unknown", u_toplot)],
+                                      sort(u_toplot[grepl("Node", u_toplot)])))
+  plot1 <- PlotTSNE(toplot = toplot, coor = coor,
                     col = col, return = TRUE, pt.size = pt.size)
   if(!interm) plot2 <- PlotTree(chetah, col, return = TRUE)
   if(interm) plot2 <- PlotTree(chetah, col_nodes = col, no_bgc = TRUE, return = TRUE)
@@ -1112,7 +1106,7 @@ ClassifyReference <- function(ref_cells, ref_types = NULL, return = FALSE, ...) 
   lngt <- length(nms)
   type <- chetah$classification
   splt <- unique(chetah$classification)
-  splt <- splt[grepl("Node", splt)]
+  splt <- splt[grepl("Node|Unknown", splt)]
   cors <- matrix(NA, nrow = lngt, ncol = lngt+1)
   rownames(cors) <- nms
   colnames(cors) <- c(nms, 'Nodes')
@@ -1128,7 +1122,7 @@ ClassifyReference <- function(ref_cells, ref_types = NULL, return = FALSE, ...) 
   ## Extract the percentage that ended up in a node
   for(i in seq_len(lngt)) {
     actual <- names(ref_types)[ref_types == nms[i]]
-    cors[i,lngt+1] <- sum(grepl("Node", type[actual]))/length(actual)
+    cors[i,lngt+1] <- sum(grepl("Node|Unknown", type[actual]))/length(actual)
   }
 
   ## Plot
@@ -1153,7 +1147,11 @@ nodeDown <- function(conf, prof, node, thresh, nodetypes, prev_clas = NULL) {
     for (row in seq_len(nrow(conf[[node]]))) {
       sub_score <- c(sub_score, conf[[node]][row, sub_clas[row]])
     }
-    sub_clas[sub_score < thresh] <- paste0("Node", node)
+    if (node == 1) {
+      sub_clas[sub_score < thresh] <- "Unknown"
+    } else {
+      sub_clas[sub_score < thresh] <- paste0("Node", (node -1))
+    }
   }
   ## Only apply on cells reaching this node
   if(!is.null(prev_clas)) {
@@ -1188,9 +1186,10 @@ equal.genes <- function(inp, ref) {
 ## Select all the final AND intermediate types below a node
 SelectNodeTypes <- function (chetah, whichnode) {
   nodes <- unlist(lapply(chetah$nodetypes[(whichnode):length(chetah$nodetypes)], function (x) {
-    all(names(x) %in% names(chetah$nodetypes[[whichnode]]))
+    all(names(x) %in% names(chetah$nodetypes[[whichnode ]]))
   }))
-  nodes <- paste0('Node', ((whichnode):length(chetah$nodetypes))[nodes])
+  nodes <- paste0('Node', ((whichnode - 1):(length(chetah$nodetypes) - 1))[nodes])
+  nodes[grepl("Node0", nodes)] <- "Unknown"
   alltypes <- c(nodes, names(chetah$nodetypes[[whichnode]]))
   return(alltypes)
 }
@@ -1214,8 +1213,11 @@ SelectNodeTypes <- function (chetah, whichnode) {
 #' chetah <- RenameBelowNode(chetah = chetah, whichnode = 7, replacement = "T cell")
 RenameBelowNode <- function(chetah, whichnode, replacement, nodes_exclude = NULL, node_only = FALSE, return_clas = FALSE) {
   classification <- chetah$classification
+  nodename <- paste0("Node", whichnode)
+  nodename[grepl("Node0", nodename)] <- "Unknown"
+  whichnode <- whichnode + 1
   if (node_only) {
-    classification[classification == paste0("Node", whichnode)] <- replacement
+    classification[classification == nodename] <- replacement
   } else {
     replace <- SelectNodeTypes(chetah = chetah, whichnode = whichnode)
     if (!is.null(nodes_exclude)) {

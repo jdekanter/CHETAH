@@ -8,7 +8,7 @@ Download buttons are present below each plot.
 (These functions work better in a web-browser: click 'Open in Browser' on top of the Rstudio-window.)
 Each t-SNE plot is interactive, so you can zoom in and out. Other plots will adapt
 to only show information of the cells in the currently selected t-SNE window.
-See the 'Info' tab for info about the method", duration = 60)
+See the 'Info' tab for info about the method.", duration = 60)
   })
 
   ## ----------------------------------- Select colors ------------------
@@ -28,7 +28,8 @@ See the 'Info' tab for info about the method", duration = 60)
                  'palevioletred1', 'peru', 'seagreen1', 'red3', 'snow2',
                  'steelblue1', 'turquoise')
     nnodes <- names(CHETAH:::ch_env$chetah$nodetypes[[1]])
-    nodes <- paste0("Node", seq_len(length(CHETAH:::ch_env$chetah$nodetypes)))
+    nodes <- c("Unknown", paste0("Node", seq_len(length(CHETAH:::ch_env$chetah$nodetypes) - 1)))
+
     if(input$colornodes) {
       n <- nodes
       nodes <- nnodes
@@ -73,9 +74,11 @@ See the 'Info' tab for info about the method", duration = 60)
   output$nodebutton <- renderUI ({
     req(CHETAH:::ch_env$chetah)
     splitmax <- length(CHETAH:::ch_env$chetah$conf_scores)
+    choices <- seq_len(splitmax)
+    names(choices) <- c(0, seq_len(splitmax - 1))
     selectInput(inputId = "whichnode",
                 label = p("Choose a Node", class = 'opt'),
-                choices = seq_len(splitmax))
+                choices = choices)
   })
   ## Select a type
   output$typebutton <- renderUI ({
@@ -110,9 +113,16 @@ See the 'Info' tab for info about the method", duration = 60)
   ## Classification t-SNE
   classTsne <- reactive({
     req(classification(), CHETAH:::ch_env$coor)
-    toplot <- data.frame(classification())
+    toplot <- classification()
+    toplot[toplot == "Unknown"] <- "Unknown (Node0)"
+    u_toplot <- unique(toplot)
+    toplot <- data.frame(factor(toplot, levels = c(u_toplot[grepl("Unknown", u_toplot)],
+                                        sort(u_toplot[grepl("Node", u_toplot) & !grepl("\\(Node0)", u_toplot)]),
+                                        sort(u_toplot[!grepl("Node|Unknown", u_toplot)]))))
     colnames(toplot) <- 'Cell type'
-    PlotTSNE(toplot = toplot, coor = CHETAH:::ch_env$coor, col = Clrs(),
+    clrs <- Clrs()
+    names(clrs)[names(clrs) == "Unknown"] <- "Unknown (Node0)"
+    PlotTSNE(toplot = toplot, coor = CHETAH:::ch_env$coor, col = clrs,
              pt.size = input$ptsize, return = TRUE, shiny = 'Cell type: ') +
       guides(color=guide_legend(title="Cell types")) +
       guides(color=guide_legend(override.aes = list(size=6)), legend_label = 'Cell type')
@@ -146,7 +156,7 @@ See the 'Info' tab for info about the method", duration = 60)
   typestable <- reactive({
     req(classification())
     types <- unique(classification())
-    types <- c(types[!grepl('Node', types)], sort(types[grepl('Node', types)]))
+    types <- c(sort(types[!grepl('Node|Unknown', types)]), types[grepl('Unknown', types)] , sort(types[grepl('Node', types)]))
     perc <- vector()
     for (i in types) perc <- c(perc, round(sum(classification() == i)/length(classification()), 4)*100)
     data <- data.frame(types, perc, stringsAsFactors = TRUE)
@@ -180,7 +190,7 @@ See the 'Info' tab for info about the method", duration = 60)
         nodetp[names(x)][1]
       } else 3
     }))
-    names(nodes) <- paste0('Node', lowerns)
+    names(nodes) <- paste0('Node', lowerns - 1) ## The names are shifted 1 place
     nodes <- nodes[nodes !=  3]
     nodecl[c(names(nodetp)[nodetp == 1], names(nodes)[nodes == 1])] <- '#ff0a0a'
     nodecl[c(names(nodetp)[nodetp == 2], names(nodes)[nodes == 2])] <- '#00a1ff'
@@ -213,7 +223,8 @@ See the 'Info' tab for info about the method", duration = 60)
     nodes <- unlist(lapply(CHETAH:::ch_env$chetah$nodetypes[(which):length(CHETAH:::ch_env$chetah$conf_scores)], function (x) {
       all(names(x) %in% names(CHETAH:::ch_env$chetah$nodetypes[[which]]))
     }))
-    nodes <- paste0('Node', ((which):length(CHETAH:::ch_env$chetah$conf_scores))[nodes])
+    nodes <- paste0('Node', ((which - 1):(length(CHETAH:::ch_env$chetah$conf_scores) - 1))[nodes])
+    nodes[grepl("Node0", nodes)] <- "Unknown"
     nodes <- c(nodes, names(CHETAH:::ch_env$chetah$nodetypes[[which]]))
     return(nodes)
   })
@@ -388,7 +399,7 @@ See the 'Info' tab for info about the method", duration = 60)
           nodetp[names(x)][1]
         } else 3
       }))
-      names(nodes) <- paste0('Node', lowerns)
+      names(nodes) <- paste0('Node', lowerns - 1)
       nodes <- nodes[nodes !=  3]
       if (input$whichtype %in% names(nodetp)[nodetp == 1]) {
         nodecl[c(names(nodetp)[nodetp == 2], names(nodes)[nodes == 2])] <- '#ff0a0a'
@@ -410,7 +421,7 @@ See the 'Info' tab for info about the method", duration = 60)
     ## Select cells
     branchtypes <- names(sort(CHETAH:::ch_env$chetah$nodetypes[[which]]))
     if (input$inclnodes) {
-      branchtypes <- c(branchtypes, SlctNodes()[grepl("Node", SlctNodes())])
+      branchtypes <- c(branchtypes, SlctNodes()[grepl("Node|Unknown", SlctNodes())])
     }
     cells <- classification()[classification() %in% branchtypes]
     cells <- cells[order(match(cells, branchtypes))]
@@ -452,7 +463,7 @@ See the 'Info' tab for info about the method", duration = 60)
     ## Select cells
     branchtypes <- names(sort(CHETAH:::ch_env$chetah$nodetypes[[which]]))
     if (input$inclnodes) {
-      branchtypes <- c(branchtypes, SlctNodes()[grepl("Node", SlctNodes())])
+      branchtypes <- c(branchtypes, SlctNodes()[grepl("Node|Unknown", SlctNodes())])
     }
     genes <- names(HMgenes())
     data <- as.matrix(CHETAH:::ch_env$counts[genes, names(HMcells())])

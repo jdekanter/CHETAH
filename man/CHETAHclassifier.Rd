@@ -27,7 +27,7 @@ ref_types must be a vector of the cell types.
 The names must correspond to the column names of \code{ref_cells}, in the same order!.}
 
 \item{ref_profiles}{\emph{optional} In case of bulk-RNA seq or micro-arrays,
-an expression matrix with one (average) reference expression profile per cell type.}
+an expression matrix with one (average) reference expression profile per cell type in the columns.}
 
 \item{thresh}{the initial confidence threshold (can be changed later
 by \code{\link{Classify}})}

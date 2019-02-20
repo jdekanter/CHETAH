@@ -65,7 +65,8 @@ This results in two types of classifications:
   
  * __Final types__: Cells that are classified to one of the leaf nodes of the tree (i.e. a cell type of the reference).
  * __Intermediate types__: Cells that had a confidence score lower than the threshold in a certain node are assigned to that intermediate node of the tree. This happens when a cell has approximately the same similarity to the right and the left branch of that node.
-  
+<div class = "blue"> CHETAH generates generic names for the intermediate types: "Unknown" for cells that are classified to the very first node, and "Node1", "Node2", etc for the additional nodes </div>
+
 # Running CHETAH
 ## The function
 Running CHETAH requires only one function: `CHETAHclassifier`.  
@@ -178,7 +179,9 @@ tsne <- tsne_mel
 str(tsne)
 PlotCHETAH(chetah = chetah, coor = tsne)
 ```
-
+<div class = "blue"> Please note that each type "NodeX" corresponds to the node with number X and that the type "Unknown" corresponds to the node with number 0  </div>
+<br>
+  
 Conversely, to plot the __intermediate types__:
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
 PlotCHETAH(chetah = chetah, coor = tsne, interm = TRUE)
