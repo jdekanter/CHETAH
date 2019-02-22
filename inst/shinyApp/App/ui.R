@@ -115,7 +115,10 @@ Also, inferred intermediate types (nodes in the tree below)
 can be colored with 'Color the intermediate types'.
 
 Please note that cells labeled: 'Unknown' are cells for which
-classification stopped in Node0",
+classification stopped in Node0
+
+If more cell types are present than could be shown,
+a small scroll bar is present on the right side of the plot",
                                               h3('CHETAH classification')
                                            ),
                                            plotly::plotlyOutput(outputId = 'classTsne', height = 600),

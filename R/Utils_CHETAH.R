@@ -178,8 +178,8 @@ CHETAHclassifier <- function (input,
   if (any(grepl("Node", uniq_ct))) {
       stop("Please don't use 'Node' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'node'")
   }
-  if (any(grepl("Unknown", uniq_ct))) {
-      stop("Please don't use 'Unknown' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'unknown'")
+  if (any(grepl("Unassigned", uniq_ct))) {
+      stop("Please don't use 'Unassigned' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'unassigned'")
   }
   ## Make reference_profiles (one average profile per reference cell type):
   if (is.null(ref_profiles)) {
@@ -721,7 +721,7 @@ PlotTree <- function(chetah, col = NULL,
     col_n <- col_nodes[grepl("Node", names(col_nodes))]
     names(col_n) <- gsub("Node", "", names(col_n))
     col_n <- col_n[order(as.numeric(names(col_n)))][seq_len(nrow(chetah$nodecoor)) - 1]
-    col_n <- c(col_nodes[grepl("Unknown", names(col_nodes))], col_n)
+    col_n <- c(col_nodes[grepl("Unassigned", names(col_nodes))], col_n)
     names(col_n)[1] <- 0
     col_r <- col_n
     alpha1 <- 0.2
@@ -940,7 +940,7 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
                  'palevioletred1', 'peru', 'seagreen1', 'red3', 'snow2',
                  'steelblue1', 'turquoise')
     leaf_nodes <- names(chetah$nodetypes[[1]])
-    int_nodes <- c("Unknown", paste0("Node", seq_len(length(chetah$nodetypes))))
+    int_nodes <- c("Unassigned", paste0("Node", seq_len(length(chetah$nodetypes))))
 
     ## Add other names, in case user renamed types
     extra_nodes <- unique(chetah$classification)[!(unique(chetah$classification) %in% names(chetah$nodetypes[[1]]))]
@@ -971,8 +971,8 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
   ## Plot
   toplot <- chetah$classification
   u_toplot <- unique(toplot)
-  toplot <- factor(toplot, levels = c(sort(u_toplot[!grepl("Node|Unknown", u_toplot)]),
-                                      u_toplot[grepl("Unknown", u_toplot)],
+  toplot <- factor(toplot, levels = c(sort(u_toplot[!grepl("Node|Unassigned", u_toplot)]),
+                                      u_toplot[grepl("Unassigned", u_toplot)],
                                       sort(u_toplot[grepl("Node", u_toplot)])))
   plot1 <- PlotTSNE(toplot = toplot, coor = coor,
                     col = col, return = TRUE, pt.size = pt.size)
@@ -1106,7 +1106,7 @@ ClassifyReference <- function(ref_cells, ref_types = NULL, return = FALSE, ...) 
   lngt <- length(nms)
   type <- chetah$classification
   splt <- unique(chetah$classification)
-  splt <- splt[grepl("Node|Unknown", splt)]
+  splt <- splt[grepl("Node|Unassigned", splt)]
   cors <- matrix(NA, nrow = lngt, ncol = lngt+1)
   rownames(cors) <- nms
   colnames(cors) <- c(nms, 'Nodes')
@@ -1122,7 +1122,7 @@ ClassifyReference <- function(ref_cells, ref_types = NULL, return = FALSE, ...) 
   ## Extract the percentage that ended up in a node
   for(i in seq_len(lngt)) {
     actual <- names(ref_types)[ref_types == nms[i]]
-    cors[i,lngt+1] <- sum(grepl("Node|Unknown", type[actual]))/length(actual)
+    cors[i,lngt+1] <- sum(grepl("Node|Unassigned", type[actual]))/length(actual)
   }
 
   ## Plot
@@ -1148,7 +1148,7 @@ nodeDown <- function(conf, prof, node, thresh, nodetypes, prev_clas = NULL) {
       sub_score <- c(sub_score, conf[[node]][row, sub_clas[row]])
     }
     if (node == 1) {
-      sub_clas[sub_score < thresh] <- "Unknown"
+      sub_clas[sub_score < thresh] <- "Unassigned"
     } else {
       sub_clas[sub_score < thresh] <- paste0("Node", (node -1))
     }
@@ -1189,7 +1189,7 @@ SelectNodeTypes <- function (chetah, whichnode) {
     all(names(x) %in% names(chetah$nodetypes[[whichnode ]]))
   }))
   nodes <- paste0('Node', ((whichnode - 1):(length(chetah$nodetypes) - 1))[nodes])
-  nodes[grepl("Node0", nodes)] <- "Unknown"
+  nodes[grepl("Node0", nodes)] <- "Unassigned"
   alltypes <- c(nodes, names(chetah$nodetypes[[whichnode]]))
   return(alltypes)
 }
@@ -1214,7 +1214,7 @@ SelectNodeTypes <- function (chetah, whichnode) {
 RenameBelowNode <- function(chetah, whichnode, replacement, nodes_exclude = NULL, node_only = FALSE, return_clas = FALSE) {
   classification <- chetah$classification
   nodename <- paste0("Node", whichnode)
-  nodename[grepl("Node0", nodename)] <- "Unknown"
+  nodename[grepl("Node0", nodename)] <- "Unassigned"
   whichnode <- whichnode + 1
   if (node_only) {
     classification[classification == nodename] <- replacement
