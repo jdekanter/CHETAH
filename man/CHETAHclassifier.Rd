@@ -18,38 +18,38 @@ of the cells of interest, with cells in the columns and genes in the rows}
 
 \item{ref_cells}{\strong{required}: either \cr (1) a list of expression matrices,
 with one matrix for each reference cell type. IMPORTANT:
-\emph{the list has to be named!} (with the corresponding cell types) \cr
+\emph{the list has to be named with the corresponding cell types} \cr
 (2) one expression matrix: in this case provide the cell type label
 in the \code{ref_type} variable.}
 
-\item{ref_types}{\strong{required}: when ref_cells is óne matrix,
-ref_types must be a vector of the cell types.
-The names must correspond to the column names of \code{ref_cells}, in the same order!.}
+\item{ref_types}{\strong{required}: when ref_cells is one matrix,
+ref_types must be a named vector of the cell types.
+The names must correspond to the column names of \code{ref_cells}, in the same order.}
 
 \item{ref_profiles}{\emph{optional} In case of bulk-RNA seq or micro-arrays,
 an expression matrix with one (average) reference expression profile per cell type in the columns.}
 
-\item{thresh}{the initial confidence threshold (can be changed later
+\item{thresh}{the initial confidence threshold, which can be changed after running
 by \code{\link{Classify}})}
 
-\item{gs_method}{method for gene selection. In every node of the tree: \cr
-"fc" = quick method: either a fixed amount (\code{n_genes})
-of genes is selected with the highest fold-change (default), \cr
+\item{gs_method}{method for gene selection. In every node of the tree: `[fc]`\cr
+"fc" = quick method: either a fixed number (\code{n_genes})
+of genes is selected with the highest fold-change,
 or genes are selected that have a fold-change higher than \code{fc_thresh}
 (the latter is used when \code{fix_ngenes = FALSE}) . \cr
 "wilcox": genes are selected based on fold-change (\code{fc_thresh}),
 percentage of expression (\code{pc_thresh}) and p-values (\code{p_thresh}),
-p-values are found by the wilcox test}
+p-values are found by the wilcox test.}
 
 \item{cor_method}{the correlation measure: one of:
 "spearman" (default), "kendall", "pearson", "cosine"}
 
-\item{clust_method}{the method used for clustering the reference profiles
-one of the methods from \code{\link[stats]{hclust}}}
+\item{clust_method}{the method used for clustering the reference profiles.
+One of the methods from \code{\link[stats]{hclust}}}
 
 \item{clust_dist}{a distance measure, default: \code{\link[bioDist]{spearman.dist}}}
 
-\item{n_genes}{The amount of genes used in every step. Only used if
+\item{n_genes}{The number of genes used in every step. Only used if
 \code{fix_ngenes = TRUE}}
 
 \item{pc_thresh}{when: \emph{gs_method = "wilcox"}, only genes are selected
@@ -68,7 +68,7 @@ between two reference groups. \cr
 \item{subsample}{to prevent reference types with a lot of cells to influence
 the gene selection, subsample types with more that \code{subsample} cells}
 
-\item{fix_ngenes}{when: \emph{gs_method = "fc"} use a fixed amount of genes
+\item{fix_ngenes}{when: \emph{gs_method = "fc"} use a fixed number of genes
 for all correlations. when: \emph{gs_method = "wilcox"}
 use a maximum of genes per step.
 When \code{fix_ngenes = FALSE & gs_methode = "fc"} \code{fc_thresh}
@@ -111,13 +111,15 @@ See 'details' for a full explanation.
 \details{
 CHETAH will hierarchically cluster reference data
 to produce a classification tree (ct).
-The Classification will In each node of the ct, CHETAH will
-divide the classification to the two branches based on gene selections,
+In each node of the ct, CHETAH will
+assign each input cell to on of the two branches, based on gene selections,
 correlations and calculation of profile and confidence scores.
+The assignement will only performed if the confidence score for
+such an assignment is higher than the Confidence Threshold.
+If this is not the case, classification for the cell will stop in the current node.
 Some input cells will reach the leaf nodes of the ct (the pre-defined cell types),
 these classifications are called \strong{final types}
-For other cells, assignment will stop in a node, if no enough evidence is available
-to assign that cell to one of the branches of that node. These classifications
+For other cells, assignment will stop in a node. These classifications
 are called \strong{intermediate types}.  \cr
 }
 \examples{

@@ -506,7 +506,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   output$dwn_genes <- downloadHandler(
     filename = function() { paste0('CHETAHgenes_node', input$whichnode, '_', input$whichtype, '.txt') },
     content = function(con) {
-      write.table(matrix(names(HMgenes()), ncol = 1), file = con, sep = '\t', quote = F, row.names = F, col.names = F)
+      write.table(matrix(names(HMgenes()), ncol = 1), file = con, sep = '\t', quote = FALSE, row.names = FALSE, col.names = FALSE)
     }
   )
   ## Plot classification tree

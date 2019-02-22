@@ -212,7 +212,7 @@ PlotCHETAH(chetah = chetah, coor = tsne, interm = TRUE)
 
 If you would like to use the classification, and thus the colors, in another package (e.g. Seurat), you can extract the colors using:
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-colors <- PlotCHETAH(chetah = chetah, coor = tsne, return_col = T)
+colors <- PlotCHETAH(chetah = chetah, coor = tsne, return_col = TRUE)
 str(colors)
 ```
 
