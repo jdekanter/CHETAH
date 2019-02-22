@@ -15,30 +15,30 @@
 #' of the cells of interest, with cells in the columns and genes in the rows
 #' @param ref_cells \strong{required}: either \cr (1) a list of expression matrices,
 #' with one matrix for each reference cell type. IMPORTANT:
-#' \emph{the list has to be named!} (with the corresponding cell types) \cr
+#' \emph{the list has to be named with the corresponding cell types} \cr
 #' (2) one expression matrix: in this case provide the cell type label
 #' in the \code{ref_type} variable.
-#' @param ref_types \strong{required}: when ref_cells is óne matrix,
-#' ref_types must be a vector of the cell types.
-#' The names must correspond to the column names of \code{ref_cells}, in the same order!.
+#' @param ref_types \strong{required}: when ref_cells is one matrix,
+#' ref_types must be a named vector of the cell types.
+#' The names must correspond to the column names of \code{ref_cells}, in the same order.
 #' @param ref_profiles \emph{optional} In case of bulk-RNA seq or micro-arrays,
 #' an expression matrix with one (average) reference expression profile per cell type in the columns.
-#' @param thresh the initial confidence threshold (can be changed later
+#' @param thresh the initial confidence threshold, which can be changed after running
 #' by \code{\link{Classify}})
-#' @param gs_method method for gene selection. In every node of the tree: \cr
-#' "fc" = quick method: either a fixed amount (\code{n_genes})
-#' of genes is selected with the highest fold-change (default), \cr
+#' @param gs_method method for gene selection. In every node of the tree: `[fc]`\cr
+#' "fc" = quick method: either a fixed number (\code{n_genes})
+#' of genes is selected with the highest fold-change,
 #' or genes are selected that have a fold-change higher than \code{fc_thresh}
 #' (the latter is used when \code{fix_ngenes = FALSE}) . \cr
 #' "wilcox": genes are selected based on fold-change (\code{fc_thresh}),
 #' percentage of expression (\code{pc_thresh}) and p-values (\code{p_thresh}),
-#' p-values are found by the wilcox test
+#' p-values are found by the wilcox test.
 #' @param cor_method the correlation measure: one of:
 #' "spearman" (default), "kendall", "pearson", "cosine"
-#' @param clust_method the method used for clustering the reference profiles
-#' one of the methods from \code{\link[stats]{hclust}}
+#' @param clust_method the method used for clustering the reference profiles.
+#' One of the methods from \code{\link[stats]{hclust}}
 #' @param clust_dist a distance measure, default: \code{\link[bioDist]{spearman.dist}}
-#' @param n_genes The amount of genes used in every step. Only used if
+#' @param n_genes The number of genes used in every step. Only used if
 #' \code{fix_ngenes = TRUE}
 #' @param pc_thresh when: \emph{gs_method = "wilcox"}, only genes are selected
 #' for which more than a \code{pc_tresh} fraction of a reference group of cells
@@ -52,7 +52,7 @@
 #' \strong{if this mode is selected, the reference must be in the log2 space}.
 #' @param subsample to prevent reference types with a lot of cells to influence
 #' the gene selection, subsample types with more that \code{subsample} cells
-#' @param fix_ngenes when: \emph{gs_method = "fc"} use a fixed amount of genes
+#' @param fix_ngenes when: \emph{gs_method = "fc"} use a fixed number of genes
 #' for all correlations. when: \emph{gs_method = "wilcox"}
 #' use a maximum of genes per step.
 #' When \code{fix_ngenes = FALSE & gs_methode = "fc"} \code{fc_thresh}
@@ -85,13 +85,15 @@
 #' @details
 #' CHETAH will hierarchically cluster reference data
 #' to produce a classification tree (ct).
-#' The Classification will In each node of the ct, CHETAH will
-#' divide the classification to the two branches based on gene selections,
+#' In each node of the ct, CHETAH will
+#' assign each input cell to on of the two branches, based on gene selections,
 #' correlations and calculation of profile and confidence scores.
+#' The assignement will only performed if the confidence score for
+#' such an assignment is higher than the Confidence Threshold.
+#' If this is not the case, classification for the cell will stop in the current node.
 #' Some input cells will reach the leaf nodes of the ct (the pre-defined cell types),
 #' these classifications are called \strong{final types}
-#' For other cells, assignment will stop in a node, if no enough evidence is available
-#' to assign that cell to one of the branches of that node. These classifications
+#' For other cells, assignment will stop in a node. These classifications
 #' are called \strong{intermediate types}.  \cr
 #' @export
 #' @importFrom bioDist spearman.dist
@@ -199,7 +201,7 @@ CHETAHclassifier <- function (input,
                     p_thresh = p_thresh, # the p-value threshold for wilcox
                     fc_thresh = fc_thresh, # the fold-change threshold for wilcox (or fc, when fix_ngenes = FALSE)
                     pc_thresh = pc_thresh, # the % of expression threshold for wilcox
-                    fix_ngenes = fix_ngenes, # boolean, use a fixed amount of genes?
+                    fix_ngenes = fix_ngenes, # boolean, use a fixed number of genes?
                     subsample = subsample, # boolean, subsample ref_types, to min(table(ref_types))
                     only_pos = only_pos, # use only higher expressed genes
                     clust_dist = clust_dist, # clustering distance
@@ -462,7 +464,7 @@ FindDiscrGenes <- function (type, other_branch, ref_profiles, Env) {
     pn_genes <- rep(1, length(top))
     names(pn_genes) <- names(top)
     if (!Env$only_pos) pn_genes[gd[names(pn_genes)] < 0] <- 0
-    # Print the amount of selected genes
+    # Print the number of selected genes
     if(Env$print_steps) cat("|", length(pn_genes), "/", sum(pn_genes), "|")
   }
 
@@ -526,7 +528,7 @@ doWilcox <- function (current_cells, otherbranch_c, all_ref_cells, Env) {
   names(pn_genes) <- genes
   pn_genes[fld[genes] > 0] <- 1
 
-  ## Print the amount of selected genes
+  ## Print the number of selected genes
   if (Env$print_steps) cat("|", length(pn_genes), "/", sum(pn_genes), "|")
 
   return(pn_genes)
@@ -621,6 +623,9 @@ doCorrelation <- function(ref_profiles, genes, input, all_ref_cells,
 #'
 #' ## Classify only cells with a very high confidence
 #' chetah <- Classify(chetah, 1)
+#'
+#' ## Return only the classification vector
+#' chetah <- Classify(chetah, 1, return_clas = T)
 Classify <- function(chetah, thresh, return_clas = FALSE) {
 
   ## Get parameters

@@ -40,17 +40,40 @@ div.blue { background-color: #fffaf2; border-radius: 5px; padding: 5px;}
 __CHETAH is a package for cell type identification of single-cell RNA-sequencing (scRNA-seq) data.__   
 Cell types are assigned by correlating the input data to a reference in a hierarchical manner. CHETAH is built to work with scRNA-seq references, but will also work with RNA-seq or micro-array reference datasets. 
 
-CHETAH can be downloaded and installed from Github.  
-<div class = "blue"> Note that `devtools::install_github` does not always install dependencies:  
-'bioDist', 'ggplot2', 'gplots', 'dendextend', 'cowplot' and 'corrplot' are needed for installation </div>  
-<br>  
+CHETAH is submitted to Bioconductor, and will soon be available by:
 ```{r echo=TRUE, eval=FALSE}
+## Install BiocManager is neccesary
+if (!require("BiocManager")) {
+    install.packages("BiocManager")
+}
+BiocManager::install('CHETAH')
+
+# Load the package
+library(CHETAH)
+```
+    
+    
+The development version can be downloaded from github.
+Note that install_github does not always install all dependencies, 
+so please check if all dependencies are available for you.
+```{r echo=TRUE, eval=FALSE}
+if (!require("devtools")) {
+    install.packages("devtools")
+}
 devtools::install_github("jdekanter/CHETAH")
 
-# --- Install dependencies, if this did not happen automatically
-install.packages('BiocManager')
-BiocManager::install(c('bioDist', 'ggplot2', 'gplots', 'cowplot', 'dendextend', 'corrplot', 'reshape', 'plotly'))
+## Check if all dependencies are installed
+dep <- c('bioDist', 'ggplot2', 'gplots', 'cowplot', 
+         'dendextend', 'corrplot', 'reshape2', 'plotly', 'grDevices')
+pkg_avail <- suppressMessages(sapply(dep, function (pkg) pkg %in% installed.packages()[, "Package"]))
 
+# --- Install dependencies, if neccesary
+if(length(dep[!pkg_avail]) > 0) {
+  if (!require("BiocManager")) {
+      install.packages("BiocManager")
+  }
+  BiocManager::install(dep[!pkg_avail])
+}
 # Load the package
 library(CHETAH)
 ```
@@ -65,7 +88,7 @@ This results in two types of classifications:
   
  * __Final types__: Cells that are classified to one of the leaf nodes of the tree (i.e. a cell type of the reference).
  * __Intermediate types__: Cells that had a confidence score lower than the threshold in a certain node are assigned to that intermediate node of the tree. This happens when a cell has approximately the same similarity to the right and the left branch of that node.
-<div class = "blue"> CHETAH generates generic names for the intermediate types: "Unknown" for cells that are classified to the very first node, and "Node1", "Node2", etc for the additional nodes </div>
+<div class = "blue"> CHETAH generates generic names for the intermediate types: "Unassigned" for cells that are classified to the very first node, and "Node1", "Node2", etc for the additional nodes </div>
 
 # Running CHETAH
 ## The function
@@ -179,7 +202,7 @@ tsne <- tsne_mel
 str(tsne)
 PlotCHETAH(chetah = chetah, coor = tsne)
 ```
-<div class = "blue"> Please note that each type "NodeX" corresponds to the node with number X and that the type "Unknown" corresponds to the node with number 0  </div>
+<div class = "blue"> Please note that each type "NodeX" corresponds to the node with number X and that the type "Unassigned" corresponds to the node with number 0  </div>
 <br>
   
 Conversely, to plot the __intermediate types__:
