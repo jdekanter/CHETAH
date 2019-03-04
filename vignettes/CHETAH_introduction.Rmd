@@ -312,3 +312,7 @@ subtypes of T cells. In this case the user should be aware that these cell type 
 ^1^ Van Der Maaten and Hinton (2008). Visualizing high-dimensional data using t-sne. _J Mach Learn Res_. 9: 2579-2605. doi: 10.1007/s10479-011-0841-3.
 ^2^ Picelli et al. (2013) Smart-seq2 for sensitive full-length transcriptome profiling in single cells. _Nat Methods_. 10(11): 1096-1100. doi: 10.1038/nmeth.2639.
 ^3^ Satija et al. (2015) Spatial reconstruction of single-cell gene expression data. _Nat Biotechnol_. 33(5):495-502. May 2015. doi: 10.1038/nbt.3192. More information at: https://satijalab.org/seurat/ 
+
+```{r}
+sessionInfo()
+```

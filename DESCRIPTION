@@ -26,7 +26,8 @@ Imports:
   	reshape2
 Depends:
     R (>= 3.5),
-	  ggplot2
+	  ggplot2,
+  	SingleCellExperiment (>= 1.4.1)
 License: file LICENSE
 Encoding: UTF-8
 biocViews: 
