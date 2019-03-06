@@ -2,18 +2,10 @@
 __CHETAH is a package for cell type identification of single-cell RNA-sequencing (scRNA-seq) data.__
 Cell types are assigned by correlating the input data to a reference in a hierarchical manner. CHETAH is built to work with scRNA-seq references, but will also work (with limited capabilities) with RNA-seq or micro-array reference datasets.
 
-CHETAH is submitted to Bioconductor, and will soon be available by:
-```{r echo=TRUE, eval=FALSE}
-## Install BiocManager is neccesary
-if (!require("BiocManager")) {
-  install.packages("BiocManager")
-}
-BiocManager::install('CHETAH')
-
-# Load the package
-library(CHETAH)
-```
-
+> NOTE: CHETAH is submitted to Bioconductor.
+> Currently, changes are being implemented to integrate CHETAH better into Bioconductor.
+> This could mean that if you install now, 
+> updating in the future would mean a neccesity to make slight adjustments to your scripts. 
 
 The development version can be downloaded from github.
 Note that install_github does not always install all dependencies,
