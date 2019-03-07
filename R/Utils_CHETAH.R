@@ -108,9 +108,9 @@
 CHETAHclassifier <- function (input,
                               ref_cells =       NULL,
                               ref_profiles =    NULL,
-                              ref_ct =          "celltype",
-                              input_c =         "counts",
-                              ref_c =           "counts",
+                              ref_ct =          "celltypes",
+                              input_c =         NA,
+                              ref_c =           NA,
                               thresh =          0.1,
                               gs_method =       "fc",
                               cor_method =      "spearman",
@@ -144,6 +144,14 @@ CHETAHclassifier <- function (input,
 
     ## TODO ERROR FOR NA's / TEST IF WORKS WITH NA's
     ## TODO MORE TESTS (WHAT IF REF_C IS NOT AVAIL IN REF?) + WHAT IS THE TYPE OF ref_cells[[ref_ct]]?
+
+    input_c <- TestCHETAH(chetah = input, input_c = input_c,
+                          runBefore = FALSE, object = "input")
+    if (!is.null(ref_cells)) {
+        ref_c <- TestCHETAH(chetah = ref_cells, input_c = ref_c,
+                            runBefore = FALSE, parameter = "ref_c",
+                            object = "ref_cells")
+    }
 
     if (is.null(ref_cells)) {
         message("Running without reference cells: classification will only be based on correlations \n")
@@ -651,6 +659,8 @@ doCorrelation <- function(ref_profiles, genes, input, ref_cells,
 #' ## Return only the classification vector
 #' chetah <- Classify(chetah, 1, return_clas = TRUE)
 Classify <- function(input, thresh, return_clas = FALSE) {
+    TestCHETAH(chetah = input)
+
     chetah_data <- int_colData(input)$CHETAH
     nodetypes <- int_metadata(input)$CHETAH$nodetypes
 
@@ -720,7 +730,7 @@ PlotTree <- function(chetah, col = NULL,
                      no_bgc = FALSE,
                      plot_limits = c(-0.4, 0.1),
                      labelsize = 6) {
-    if (is.null(chetah@int_metadata$CHETAH)) stop('Please run CHETAHclassifier on the SingleCellExperiment object before calling this funtion')
+    TestCHETAH(chetah = chetah)
     ## Extract parameters + make dendrogram
     meta_data <- chetah@int_metadata$CHETAH
     lbls <- meta_data$tree$labels
@@ -813,26 +823,8 @@ PlotTree <- function(chetah, col = NULL,
 PlotTSNE <- function (toplot, chetah, redD, col = NULL, return = FALSE,
                       limits = NULL, pt.size = 1, shiny = NULL,
                       y_limits = NULL, x_limits = NULL, legend_label = '') {
-    if (is.null(chetah@int_metadata$CHETAH)) stop('Please run CHETAHclassifier on the SingleCellExperiment object before calling this funtion')
-    ## Select reduced dimensions:
-    if (is.null(redD)) {
-            redD <- 1
-        if (length(reducedDims(chetah)) > 1) {
-            message(paste("No reducedDim specified, running with the first one:", names(reducedDims(chetah))[1]))
-            message('Change the "redD" variable if you prefer another')
-        }
-        if (length(reducedDims(chetah)) == 0) {
-            stop("Please specify 'reducedDim(chetah)'. For more info see: ?reduceDim")
-        }
-    } else {
-        if (!(redD %in% names(reducedDims(chetah)))) {
-            stop(paste("The specified reducedDim is not available.
-                       Please choose one of 'names(reducedDim(chetah))':",
-                       names(reducedDim(chetah))))
-        }
-    }
+    redD <- TestCHETAH(chetah = chetah, redD = redD)
     redD <- reducedDim(chetah, redD)
-
     ## Merge redD and toplot
     if (is.null(names(toplot)) & is.null(dim(toplot))) names(toplot) <- rownames(redD)
     toplot <- data.frame(toplot, stringsAsFactors = TRUE)
@@ -964,10 +956,9 @@ PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
 #'
 #' ## Plot only the t-SNE plot
 #' PlotCHETAH(chetah = chetah, redD = tsne, tree = FALSE)
-PlotCHETAH <- function(chetah, redD = NULL, interm = FALSE, return = FALSE,
+PlotCHETAH <- function(chetah, redD = NA, interm = FALSE, return = FALSE,
                        tree = TRUE, pt.size = 1, return_col = FALSE, col = NULL) {
-    if (is.null(chetah@int_metadata$CHETAH)) stop('Please run CHETAHclassifier on the SingleCellExperiment object before calling this funtion')
-
+    TestCHETAH(chetah = chetah)
     ## Determine colors: if not custom, use the predefined ones. If too many cell types: rainbow.
     meta_data <- chetah@int_metadata$CHETAH
     classification <- chetah$celltype_CHETAH
@@ -1052,14 +1043,14 @@ PlotCHETAH <- function(chetah, redD = NULL, interm = FALSE, return = FALSE,
 #' @examples
 #' reference <- reference_hn
 #' CorrelateReference(ref_cells = reference)
-CorrelateReference <- function(ref_cells = NULL, ref_profiles = NULL, ref_ct = "celltype",
-                               ref_c = "counts", return = FALSE, n_genes = 200,
+CorrelateReference <- function(ref_cells = NULL, ref_profiles = NULL, ref_ct = "celltypes",
+                               ref_c = NULL, return = FALSE, n_genes = 200,
                                fix_ngenes = TRUE, print_steps = FALSE,
                                only_pos = FALSE) {
     cat('Running... in case of 1000s of cells, this may take a couple of minutes \n')
-    #### TODO TESTS
-
-    ## Make ref_profiles
+    ref_c <- TestCHETAH(chetah = ref_cells, input_c = ref_c,
+                        runBefore = FALSE, parameter = "ref_c",
+                        object = "ref_cells")    ## Make ref_profiles
     if (is.null(ref_profiles)) {
         ref_profiles <- MeanRef(ref = ref_cells, method = "mean", ref_ct = ref_ct, ref_c = ref_c)
     } else if (class(ref_profiles) == "SingleCellExperiment") {
@@ -1129,7 +1120,7 @@ CorrelateReference <- function(ref_cells = NULL, ref_profiles = NULL, ref_ct = "
 #' @examples
 #' reference <- reference_hn
 #' ClassifyReference(ref_cells = reference)
-ClassifyReference <- function(ref_cells, ref_ct = "celltype",
+ClassifyReference <- function(ref_cells, ref_ct = "celltypes",
                               ref_c = "counts", ref_types = NULL,
                               return = FALSE, ...) {
     ## Classify
@@ -1256,7 +1247,11 @@ SelectNodeTypes <- function (chetah, whichnode) {
 #' @examples
 #' ## In the example data replace all T-cell subtypes by "T cell"
 #' chetah <- RenameBelowNode(chetah = chetah, whichnode = 7, replacement = "T cell")
-RenameBelowNode <- function(chetah, whichnode, replacement, nodes_exclude = NULL, node_only = FALSE, return_clas = FALSE) {
+RenameBelowNode <- function(chetah, whichnode, replacement,
+                            nodes_exclude = NULL,
+                            types_exclude = NULL,
+                            node_only = FALSE,
+                            return_clas = FALSE) {
     classification <- chetah$celltype_CHETAH
     nodename <- paste0("Node", whichnode)
     nodename[grepl("Node0", nodename)] <- "Unassigned"
@@ -1271,6 +1266,9 @@ RenameBelowNode <- function(chetah, whichnode, replacement, nodes_exclude = NULL
                 exclude <- c(exclude, SelectNodeTypes(chetah = chetah, whichnode = nodes_exclude[number]))
             }
             replace <- replace[!(replace %in% exclude)]
+        }
+        if (!is.null(types_exclude)) {
+            replace <- replace[!(replace %in% types_exclude)]
         }
         classification[classification %in% replace] <- replacement
         chetah$celltype_CHETAH <- classification
@@ -1304,7 +1302,8 @@ ch_env <- new.env(parent = emptyenv())
 #' tsne <- tsne_mel
 #' CHETAHshiny(chetah = chetah, coor = tsne, counts = counts)
 #' }
-CHETAHshiny <- function (chetah, coor, counts) {
+CHETAHshiny <- function (chetah, redD = NA, input_c = NA) {
+
     ## Search for the shinyApp in the package directory
     saved.stringsAsFactors <- options()$stringsAsFactors
     options(stringsAsFactors = TRUE)
@@ -1313,10 +1312,56 @@ CHETAHshiny <- function (chetah, coor, counts) {
         stop("Could not find example directory. Try re-installing `chetah`.", call. = FALSE)
     }
     ## Put data in package_environment
+    input_c <- TestCHETAH(chetah = chetah, input_c = input_c)
+    redD <- TestCHETAH(chetah = chetah, redD = redD)
+    ch_env$redD <- redD
+    ch_env$input_c <- input_c
     ch_env$chetah <- chetah
-    ch_env$coor <- coor
-    ch_env$counts <- counts
-    rm(chetah, coor, counts)
+    rm(chetah)
     shiny::runApp(appDir, display.mode = "normal")
     options(stringsAsFactors=saved.stringsAsFactors)
+}
+
+### ---------------------------------------------------------------------------
+TestCHETAH <- function (chetah, redD = NULL, input_c = NULL, runBefore = TRUE, parameter = NULL, object = "chetah") {
+
+    ## is chetah run?
+    if (runBefore) {
+      if (is.null(chetah@int_metadata$CHETAH)) stop('Please run CHETAHclassifier on the SingleCellExperiment object before calling this funtion')
+    }
+    ## Select the correct reducedDim/assay
+    if (!is.null(redD)) {
+        if (is.null(parameter)) parameter <- "redD"
+        selected <- TestInput(chetah = chetah, assessor = SingleCellExperiment::reducedDims,
+                              name = "reducedDims", parameter = parameter, selected = redD, object = object)
+        return(selected)
+    } else if (!is.null(input_c)) {
+        if (is.null(parameter)) parameter <- "input_c"
+        selected <- TestInput(chetah = chetah, assessor = SummarizedExperiment::assays,
+                              name = "assays", parameter = parameter, selected = input_c, object = object)
+        return(selected)
+    }
+}
+### ---------------------------------------------------------------------------
+TestInput <- function (chetah, assessor, name, parameter, selected, object) {
+
+    ## Test if assessor(object) is named
+    if (!is.null(names(assessor(chetah))) & !("" %in% names(assessor(chetah))[1])) {
+        if (length(assessor(chetah)) == 0) {
+            stop(paste("No", name, "in the SingleCellExperiment object.",
+                 "Please refer to the CHETAH vignette on how to prepare your data: browseVignettes('CHETAH')"))
+        }
+        if (is.na(selected)) {
+            selected <- names(assessor(chetah))[1]
+        } else {
+            if (!(selected %in% names(assessor(chetah)))) {
+                stop(paste0("The specified ", parameter ," is not available. ",
+                     "Please choose one of 'names(", name, "(", object, "))': ",
+                     paste(names(assessor(chetah)), collapse = " ")), call. = FALSE)
+            }
+        }
+        return(selected)
+    } else {
+        stop(paste0("Please name your: '", name, "(", object, "))'. This is essential for the method"))
+    }
 }

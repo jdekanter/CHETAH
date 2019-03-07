@@ -2,6 +2,8 @@
 __CHETAH is a package for cell type identification of single-cell RNA-sequencing (scRNA-seq) data.__
 Cell types are assigned by correlating the input data to a reference in a hierarchical manner. CHETAH is built to work with scRNA-seq references, but will also work (with limited capabilities) with RNA-seq or micro-array reference datasets.
 
+A pre-print of the article describing CHETAH can be found at: https://www.biorxiv.org/content/10.1101/558908v1
+
 > NOTE: CHETAH is submitted to Bioconductor.
 > Currently, changes are being implemented to integrate CHETAH better into Bioconductor.
 > This could mean that if you install now, 
