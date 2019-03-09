@@ -6,10 +6,10 @@
 NOTE: In case of bulk reference profiles: only the correlations will be used,
 as the data does not allow for profile or confidence scores to be calculated.}
 \usage{
-Classify(chetah, thresh, return_clas = FALSE)
+Classify(input, thresh = 0.1, return_clas = FALSE)
 }
 \arguments{
-\item{chetah}{the CHETAH object}
+\item{input}{a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run}
 
 \item{thresh}{a confidence threshold between -0 and 2. \cr
 Selecting 0 will classify all cells, whereas 2 will result i
@@ -28,11 +28,14 @@ as the data does not allow for profile or confidence scores to be calculated.
 }
 \examples{
 ## Classify all cells
-chetah <- Classify(chetah, 0)
+input_mel <- Classify(input_mel, 0)
 
 ## Classify only cells with a very high confidence
-chetah <- Classify(chetah, 1)
+input_mel <- Classify(input_mel, 1)
+
+## Back to the default
+input_mel <- Classify(input_mel)
 
 ## Return only the classification vector
-chetah <- Classify(chetah, 1, return_clas = TRUE)
+input_mel <- Classify(input_mel, 1, return_clas = TRUE)
 }

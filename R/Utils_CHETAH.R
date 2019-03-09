@@ -11,23 +11,23 @@
 #' See 'details' for a full explanation.
 #' \emph{NOTE: We recommend to use all the default parameters}
 #'
-#' @param input \strong{required}: an expression matrix (matrix, data.frame or Matrix)
-#' of the cells of interest, with cells in the columns and genes in the rows
-#' @param ref_cells \strong{required}: either \cr (1) a list of expression matrices,
-#' with one matrix for each reference cell type. IMPORTANT:
-#' \emph{the list has to be named with the corresponding cell types} \cr
-#' (2) one expression matrix: in this case provide the cell type label
-#' in the \code{ref_type} variable.
-#' @param ref_types \strong{required}: when ref_cells is one matrix,
-#' ref_types must be a named vector of the cell types.
-#' The names must correspond to the column names of \code{ref_cells}, in the same order.
+#' @param input \strong{required}: an input SingleCellExperiment.
+#' (see: \href{https://bioconductor.org/packages/release/bioc/html/SingleCellExperiment.html}{Bioconductor},
+#' and the vignette \code{browseVignettes("CHETAH")})
+#' @param ref_cells \strong{required}: A reference SingleCellExperiment, with
+#' the cell types in the "celltypes" colData (or otherwise defined in \code{ref_ct}.
 #' @param ref_profiles \emph{optional} In case of bulk-RNA seq or micro-arrays,
-#' an expression matrix with one (average) reference expression profile per cell type in the columns.
+#' an expression matrix with one (average) reference expression profile
+#' per cell type in the columns. (`ref_cells` must be left empty)
+#' @param ref_ct the colData of \code{ref_cells} where the cell types are stored.
+#' @param input_c the name of the assay of the input to use.
+#' \code{NA} (default) will use the first one.
+#' @param ref_c same as \code{input_c}, but for the reference.
 #' @param thresh the initial confidence threshold, which can be changed after running
 #' by \code{\link{Classify}})
-#' @param gs_method method for gene selection. In every node of the tree: `[fc]`\cr
+#' @param gs_method method for gene selection. In every node of the tree:
 #' "fc" = quick method: either a fixed number (\code{n_genes})
-#' of genes is selected with the highest fold-change,
+#' of genes is selected with the highest fold-change (default),
 #' or genes are selected that have a fold-change higher than \code{fc_thresh}
 #' (the latter is used when \code{fix_ngenes = FALSE}) . \cr
 #' "wilcox": genes are selected based on fold-change (\code{fc_thresh}),
@@ -64,23 +64,29 @@
 #' per step per ref_cell_type should be printed
 #'
 #' @return
-#' The chetah object:
-#' A list containing the following objects:
-#' NOTE: all objects that are lists themselfs contain one object
-#' per node in the classification tree
+#' A SingleCellExperiment with added:
+#' -  input$celltype_CHETAH
+#' a named character vector that can directly be used in any other workflow/method.
+#' -  "hidden" `int_colData` and `int_metadata`, not meant for direct interaction, but
+#' which can all be viewed and interacted with using: `PlotCHETAH` and `CHETAHshiny`
+#' A list containing the following objects is added to input$int_metadata$CHETAH
 #' \itemize{
 #'   \item \strong{classification} a named vector: the classified types
 #'   with the corresponding names of the input cells
-#'   \item \strong{prof_scores} A list with the profile scores
-#'   \item \strong{conf_scores} A list with the confidence scores
-#'   \item \strong{nodetypes} A list with the cell types under each node
-#'   \item \strong{correlations} A list with the correlations of the
-#'   input cells to the reference profiles
 #'   \item \strong{tree} the hclust object of the classification tree
+#'   \item \strong{nodetypes} A list with the cell types under each node
 #'   \item \strong{nodecoor} the coordinates of the nodes of the classification tree
 #'   \item \strong{genes} A list per node, containing a list per
 #'   reference type with the genes used for the profile scores of that type
 #'   \item \strong{parameters} The parameters used
+#' }
+#' A nested DataFrame is added to input$int_colData$CHETAH.
+#' It holds 3 top-levels DataFrames
+#' \itemize{
+#'   \item \strong{prof_scores} A list with the profile scores
+#'   \item \strong{conf_scores} A list with the confidence scores
+#'   \item \strong{correlations} A list with the correlations of the
+#'   input cells to the reference profiles
 #' }
 #' @details
 #' CHETAH will hierarchically cluster reference data
@@ -100,11 +106,10 @@
 #' @importFrom stats as.dendrogram cutree ecdf hclust p.adjust wilcox.test
 #' @examples
 #' ## Melanoma data from Tirosh et al. (2016) Science
-#' input = data_mel
+#' input_mel
 #' ## Head-Neck data from Puram et al. (2017) Cancer Cell
-#' reference = reference_hn
-#' ls.str(reference) ## a list of expression matrices, group per cell type
-#' chetah <- CHETAHclassifier(input = input, ref_cells = reference)
+#' headneck_ref
+#' chetah <- CHETAHclassifier(input = input_mel, ref_cells = headneck_ref)
 CHETAHclassifier <- function (input,
                               ref_cells =       NULL,
                               ref_profiles =    NULL,
@@ -142,8 +147,11 @@ CHETAHclassifier <- function (input,
               if (!is.null(ref_cells)) class(ref_cells) == "SingleCellExperiment" else TRUE,
               if (!is.null(ref_profiles)) class(ref_profiles) == "SingleCellExperiment" else TRUE)
 
-    ## TODO ERROR FOR NA's / TEST IF WORKS WITH NA's
-    ## TODO MORE TESTS (WHAT IF REF_C IS NOT AVAIL IN REF?) + WHAT IS THE TYPE OF ref_cells[[ref_ct]]?
+    if (!is.null(ref_cells)) ref_check <- ref_cells else ref_check <- ref_profiles
+    if (!(ref_ct %in% names(colData(ref_check)))) {
+        stop(paste0("Please add the cell type data in the colData of your reference and supply it's name to 'ref_ct').
+             Current colData:", paste(names(colData(ref_check)), collapse = " ")))
+    }; rm(ref_check)
 
     input_c <- TestCHETAH(chetah = input, input_c = input_c,
                           runBefore = FALSE, object = "input")
@@ -280,7 +288,7 @@ CHETAHclassifier <- function (input,
     ## Add the (visible) classification meta-data
     input <- Classify(input = input, thresh = thresh)
 
-    if (plot.tree) PlotTree(chetah = output)
+    if (plot.tree) PlotTree(input = output)
     return(input)
 }     ### CHETAHclassifier
 ## -----------------------------------------------------------------------------
@@ -639,7 +647,7 @@ doCorrelation <- function(ref_profiles, genes, input, ref_cells,
 #' NOTE: In case of bulk reference profiles: only the correlations will be used,
 #' as the data does not allow for profile or confidence scores to be calculated.
 #'
-#' @param chetah the CHETAH object
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param thresh a confidence threshold between -0 and 2. \cr
 #' Selecting 0 will classify all cells, whereas 2 will result i
 #' n (almost) no cells to be classified. \cr
@@ -651,14 +659,17 @@ doCorrelation <- function(ref_profiles, genes, input, ref_cells,
 #'
 #' @examples
 #' ## Classify all cells
-#' chetah <- Classify(chetah, 0)
+#' input_mel <- Classify(input_mel, 0)
 #'
 #' ## Classify only cells with a very high confidence
-#' chetah <- Classify(chetah, 1)
+#' input_mel <- Classify(input_mel, 1)
+#'
+#' ## Back to the default
+#' input_mel <- Classify(input_mel)
 #'
 #' ## Return only the classification vector
-#' chetah <- Classify(chetah, 1, return_clas = TRUE)
-Classify <- function(input, thresh, return_clas = FALSE) {
+#' input_mel <- Classify(input_mel, 1, return_clas = TRUE)
+Classify <- function(input, thresh = 0.1, return_clas = FALSE) {
     TestCHETAH(chetah = input)
 
     chetah_data <- int_colData(input)$CHETAH
@@ -708,7 +719,7 @@ MeanRef <- function (ref,
 
 #' Plots the chetah classification tree with nodes numbered
 #'
-#' @param chetah a chetah object
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param col a vector of colors, with the names of the reference cell types
 #' @param col_nodes a vector of colors, ordered for node 1 till the last node
 #' @param return instead of printing, return the ggplot object
@@ -723,8 +734,8 @@ MeanRef <- function (ref,
 #' @importFrom dendextend color_branches
 #' @importFrom dendextend color_labels
 #' @importFrom stats as.dendrogram
-#' @examples PlotTree(chetah = chetah)
-PlotTree <- function(chetah, col = NULL,
+#' @examples PlotTree(input = input_mel)
+PlotTree <- function(input, col = NULL,
                      col_nodes = NULL,
                      return = FALSE,
                      no_bgc = FALSE,
@@ -796,6 +807,7 @@ PlotTree <- function(chetah, col = NULL,
 #' or a factor, or a (continuous) numeric.
 #' If toplot is not named with the rownames of \code{redD}, it is assumed
 #' that the order of the two is the same.
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param redD the tSNE, or other 2D vizualization coordinates.
 #' A matrix or dataframe with cells in the rows and x (e.g. tSNE_1) and
 #' y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively
@@ -817,10 +829,9 @@ PlotTree <- function(chetah, col = NULL,
 #' @import ggplot2
 #' @importFrom gplots colorpanel
 #' @examples
-#' tsne <- tsne_mel
-#' CD8 <- as.matrix(data_mel['CD8A', ])
-#' PlotTSNE(toplot = CD8, redD = tsne)
-PlotTSNE <- function (toplot, chetah, redD, col = NULL, return = FALSE,
+#' CD8 <- as.matrix(input_mel['CD8A', ])
+#' PlotTSNE(toplot = CD8, input = input_mel)
+PlotTSNE <- function (toplot, input, redD, col = NULL, return = FALSE,
                       limits = NULL, pt.size = 1, shiny = NULL,
                       y_limits = NULL, x_limits = NULL, legend_label = '') {
     redD <- TestCHETAH(chetah = chetah, redD = redD)
@@ -930,7 +941,7 @@ PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
 #' + the corresponding classification tree,
 #' colored with the same colors
 #'
-#' @param chetah a chetah object
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param coor the tSNE, or other 2D vizualization coordinates.
 #' A matrix or dataframe with cells in the rows and x (e.g. tSNE_1)
 #'  and y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively
@@ -947,16 +958,15 @@ PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
 #' @importFrom cowplot plot_grid
 #' @importFrom grDevices rainbow rgb
 #' @examples
-#' tsne <- tsne_mel
 #' ## Standard plot (final types colored)
-#' PlotCHETAH(chetah = chetah, coor = tsne)
+#' PlotCHETAH(input = input_mel)
 #'
 #' ## Intermediate types colored
-#' PlotCHETAH(chetah = chetah, coor = tsne, interm = TRUE)
+#' PlotCHETAH(input = input_mel, interm = TRUE)
 #'
 #' ## Plot only the t-SNE plot
-#' PlotCHETAH(chetah = chetah, redD = tsne, tree = FALSE)
-PlotCHETAH <- function(chetah, redD = NA, interm = FALSE, return = FALSE,
+#' PlotCHETAH(input = input_mel, tree = FALSE)
+PlotCHETAH <- function(input, redD = NA, interm = FALSE, return = FALSE,
                        tree = TRUE, pt.size = 1, return_col = FALSE, col = NULL) {
     TestCHETAH(chetah = chetah)
     ## Determine colors: if not custom, use the predefined ones. If too many cell types: rainbow.
@@ -1007,7 +1017,7 @@ PlotCHETAH <- function(chetah, redD = NA, interm = FALSE, return = FALSE,
     toplot <- factor(toplot, levels = c(sort(u_toplot[!grepl("Node|Unassigned", u_toplot)]),
                                         u_toplot[grepl("Unassigned", u_toplot)],
                                         sort(u_toplot[grepl("Node", u_toplot)])))
-    plot1 <- PlotTSNE(toplot = toplot, chetah = chetah, redD = redD,
+    plot1 <- PlotTSNE(toplot = toplot, input = chetah, redD = redD,
                       col = col, return = TRUE, pt.size = pt.size)
     if(!interm) plot2 <- PlotTree(chetah, col, return = TRUE)
     if(interm) plot2 <- PlotTree(chetah, col_nodes = col, no_bgc = TRUE, return = TRUE)
@@ -1023,9 +1033,9 @@ PlotCHETAH <- function(chetah, redD = NA, interm = FALSE, return = FALSE,
 #'
 #' @param ref_cells the reference, similar to
 #' \code{\link{CHETAHclassifier}}'s ref_cells
-#' @param ref_types must be provided if \code{ref_cells} is one matrix
 #' @param ref_profiles similar to
 #' \code{\link{CHETAHclassifier}}'s ref_profiles
+#' @param ref_c the assay of \code{ref_cells} to use
 #' @param return return the matrix that was used to produce the plot
 #' @param n_genes as in \code{\link{CHETAHclassifier}}
 #' @param fix_ngenes as in \code{\link{CHETAHclassifier}}
@@ -1041,10 +1051,9 @@ PlotCHETAH <- function(chetah, redD = NA, interm = FALSE, return = FALSE,
 #' @importFrom corrplot corrplot
 #' @importFrom stats cor
 #' @examples
-#' reference <- reference_hn
-#' CorrelateReference(ref_cells = reference)
+#' CorrelateReference(ref_cells = headneck_ref)
 CorrelateReference <- function(ref_cells = NULL, ref_profiles = NULL, ref_ct = "celltypes",
-                               ref_c = NULL, return = FALSE, n_genes = 200,
+                               ref_c = NA, return = FALSE, n_genes = 200,
                                fix_ngenes = TRUE, print_steps = FALSE,
                                only_pos = FALSE) {
     cat('Running... in case of 1000s of cells, this may take a couple of minutes \n')
@@ -1097,8 +1106,9 @@ CorrelateReference <- function(ref_cells = NULL, ref_profiles = NULL, ref_ct = "
 #'
 #' @param ref_cells the reference, similar to
 #' \code{\link{CHETAHclassifier}}'s ref_cells
-#' @param ref_types must be provide if
-#' \code{ref_cells} is a matrix of dataframe
+#' @param ref_ct the colData of \code{ref_cells} where the cell types are stored.
+#' @param input_c the name of the assay of the input to use.
+#' \code{NA} (default) will use the first one.
 #' @param return return the matrix that was used to produce the plot
 #' @param ... Other variables to pass to
 #' \code{\link{CHETAHclassifier}}
@@ -1118,10 +1128,9 @@ CorrelateReference <- function(ref_cells = NULL, ref_profiles = NULL, ref_ct = "
 #' @importFrom corrplot corrplot
 #' @importFrom graphics text
 #' @examples
-#' reference <- reference_hn
-#' ClassifyReference(ref_cells = reference)
+#' ClassifyReference(ref_cells = headneck_ref)
 ClassifyReference <- function(ref_cells, ref_ct = "celltypes",
-                              ref_c = "counts", ref_types = NULL,
+                              ref_c = "counts",
                               return = FALSE, ...) {
     ## Classify
     chetah <- CHETAHclassifier(input = ref_cells,
@@ -1233,7 +1242,7 @@ SelectNodeTypes <- function (chetah, whichnode) {
 #' In the CHETAH classification, replace the name of a Node
 #' and all the names of the final and intermediate types under that Node.
 #'
-#' @param chetah a chetah object
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param whichnode the number of the Node
 #' @param replacement a character vector that replaces the names under the selected Node
 #' @param nodes_exclude \emph{optional} numbers of the Nodes under the selected Node, that should \strong{NOT} be replaced
@@ -1246,8 +1255,8 @@ SelectNodeTypes <- function (chetah, whichnode) {
 #'
 #' @examples
 #' ## In the example data replace all T-cell subtypes by "T cell"
-#' chetah <- RenameBelowNode(chetah = chetah, whichnode = 7, replacement = "T cell")
-RenameBelowNode <- function(chetah, whichnode, replacement,
+#' chetah <- RenameBelowNode(input = input_mel, whichnode = 7, replacement = "T cell")
+RenameBelowNode <- function(input, whichnode, replacement,
                             nodes_exclude = NULL,
                             types_exclude = NULL,
                             node_only = FALSE,
@@ -1281,7 +1290,7 @@ ch_env <- new.env(parent = emptyenv())
 ## Package environment to transfer the data for the shiny package
 #' Launch a web page to interactively go trough the classification
 #'
-#' @param chetah a chetah object
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param coor the coordinates of 2D visualization,
 #' e.g. t-SNE. 2 columns for the 2 coordinates types
 #' (e.g. tSNE_1, tSNE_2). The column names have
@@ -1298,11 +1307,9 @@ ch_env <- new.env(parent = emptyenv())
 #'
 #' @examples
 #' \dontrun{
-#' counts <- data_mel
-#' tsne <- tsne_mel
-#' CHETAHshiny(chetah = chetah, coor = tsne, counts = counts)
+#' CHETAHshiny(input = input_mel)
 #' }
-CHETAHshiny <- function (chetah, redD = NA, input_c = NA) {
+CHETAHshiny <- function (input, redD = NA, input_c = NA) {
 
     ## Search for the shinyApp in the package directory
     saved.stringsAsFactors <- options()$stringsAsFactors

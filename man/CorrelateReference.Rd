@@ -5,18 +5,18 @@
 \title{Correlate all reference profiles to each other
 using differentially expressed genes.}
 \usage{
-CorrelateReference(ref_cells = NULL, ref_types = NULL,
-  ref_profiles = NULL, return = FALSE, n_genes = 200,
+CorrelateReference(ref_cells = NULL, ref_profiles = NULL,
+  ref_ct = "celltypes", ref_c = NA, return = FALSE, n_genes = 200,
   fix_ngenes = TRUE, print_steps = FALSE, only_pos = FALSE)
 }
 \arguments{
 \item{ref_cells}{the reference, similar to
 \code{\link{CHETAHclassifier}}'s ref_cells}
 
-\item{ref_types}{must be provided if \code{ref_cells} is one matrix}
-
 \item{ref_profiles}{similar to
 \code{\link{CHETAHclassifier}}'s ref_profiles}
+
+\item{ref_c}{the assay of \code{ref_cells} to use}
 
 \item{return}{return the matrix that was used to produce the plot}
 
@@ -37,6 +37,5 @@ Correlate all reference profiles to each other
 using differentially expressed genes.
 }
 \examples{
-reference <- reference_hn
-CorrelateReference(ref_cells = reference)
+CorrelateReference(ref_cells = headneck_ref)
 }

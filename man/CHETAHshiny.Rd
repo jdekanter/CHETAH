@@ -4,10 +4,10 @@
 \alias{CHETAHshiny}
 \title{Launch a web page to interactively go trough the classification}
 \usage{
-CHETAHshiny(chetah, coor, counts)
+CHETAHshiny(input, redD = NA, input_c = NA)
 }
 \arguments{
-\item{chetah}{a chetah object}
+\item{input}{a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run}
 
 \item{coor}{the coordinates of 2D visualization,
 e.g. t-SNE. 2 columns for the 2 coordinates types
@@ -25,8 +25,6 @@ Launch a web page to interactively go trough the classification
 }
 \examples{
 \dontrun{
-counts <- data_mel
-tsne <- tsne_mel
-CHETAHshiny(chetah = chetah, coor = tsne, counts = counts)
+CHETAHshiny(input = input_mel)
 }
 }

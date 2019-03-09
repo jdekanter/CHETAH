@@ -139,7 +139,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   })
   output$classTsne <- plotly::renderPlotly({
     classTsne_plot <- plotly::ggplotly(classTsne(), tooltip = 'text')
-    plotly::config(classTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = F)
+    plotly::config(classTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = FALSE)
   })
   output$dwn_clTsne <- downloadHandler(
     filename = function() { paste0('CHETAH_classification_', input$conf_thresh, '.png') },
@@ -151,8 +151,8 @@ See the 'Info' tab for info about the method.", duration = 60)
   classTree <- reactive({
     req(Clrs())
     if (input$colornodes) interm <- TRUE else interm <- FALSE
-    if(interm) PlotTree(chetah = chetah, col_nodes = Clrs(), no_bgc = TRUE) else {
-      PlotTree(chetah = chetah, col = Clrs()) + ggtitle('')
+    if(interm) PlotTree(input = chetah, col_nodes = Clrs(), no_bgc = TRUE) else {
+      PlotTree(input = chetah, col = Clrs()) + ggtitle('')
     }
   })
   output$classTree <- renderPlot({ classTree() })
@@ -263,7 +263,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   })
   output$confTsne <- plotly::renderPlotly({
     confTsne_plot <- plotly::ggplotly(confTsne(), tooltip = c('text'), source = 'conf')
-    plotly::config(confTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = F)
+    plotly::config(confTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = FALSE)
   })
   output$dwn_confTsne <- downloadHandler(
     filename = function() { paste0('CHETAH_confidence_node', input$whichnode, '.png') },
@@ -360,7 +360,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   })
   output$profTsne <- plotly::renderPlotly({
     profTsne_plot <- plotly::ggplotly(profTsne(), tooltip = c('text'), source = 'prof')
-    plotly::config(profTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = F)
+    plotly::config(profTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = FALSE)
   })
   output$dwn_profTsne <- downloadHandler(
     filename = function() { paste0('CHETAH_prof_scores_node', input$whichnode, 'type_', input$whichtype, '.png') },

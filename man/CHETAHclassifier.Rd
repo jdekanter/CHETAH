@@ -4,37 +4,39 @@
 \alias{CHETAHclassifier}
 \title{Identification of cell types aided by hierarchical clustering}
 \usage{
-CHETAHclassifier(input, ref_cells = NULL, ref_types = NULL,
-  ref_profiles = NULL, thresh = 0.1, gs_method = "fc",
-  cor_method = "spearman", clust_method = "average",
-  clust_dist = bioDist::spearman.dist, n_genes = 200,
-  pc_thresh = 0.2, p_thresh = 0.05, fc_thresh = 1.5,
+CHETAHclassifier(input, ref_cells = NULL, ref_profiles = NULL,
+  ref_ct = "celltypes", input_c = NA, ref_c = NA, thresh = 0.1,
+  gs_method = "fc", cor_method = "spearman",
+  clust_method = "average", clust_dist = bioDist::spearman.dist,
+  n_genes = 200, pc_thresh = 0.2, p_thresh = 0.05, fc_thresh = 1.5,
   subsample = FALSE, fix_ngenes = TRUE, plot.tree = FALSE,
   only_pos = FALSE, print_steps = FALSE)
 }
 \arguments{
-\item{input}{\strong{required}: an expression matrix (matrix, data.frame or Matrix)
-of the cells of interest, with cells in the columns and genes in the rows}
+\item{input}{\strong{required}: an input SingleCellExperiment.
+(see: \href{https://bioconductor.org/packages/release/bioc/html/SingleCellExperiment.html}{Bioconductor},
+and the vignette \code{browseVignettes("CHETAH")})}
 
-\item{ref_cells}{\strong{required}: either \cr (1) a list of expression matrices,
-with one matrix for each reference cell type. IMPORTANT:
-\emph{the list has to be named with the corresponding cell types} \cr
-(2) one expression matrix: in this case provide the cell type label
-in the \code{ref_type} variable.}
-
-\item{ref_types}{\strong{required}: when ref_cells is one matrix,
-ref_types must be a named vector of the cell types.
-The names must correspond to the column names of \code{ref_cells}, in the same order.}
+\item{ref_cells}{\strong{required}: A reference SingleCellExperiment, with
+the cell types in the "celltypes" colData (or otherwise defined in \code{ref_ct}.}
 
 \item{ref_profiles}{\emph{optional} In case of bulk-RNA seq or micro-arrays,
-an expression matrix with one (average) reference expression profile per cell type in the columns.}
+an expression matrix with one (average) reference expression profile
+per cell type in the columns. (`ref_cells` must be left empty)}
+
+\item{ref_ct}{the colData of \code{ref_cells} where the cell types are stored.}
+
+\item{input_c}{the name of the assay of the input to use.
+\code{NA} (default) will use the first one.}
+
+\item{ref_c}{same as \code{input_c}, but for the reference.}
 
 \item{thresh}{the initial confidence threshold, which can be changed after running
 by \code{\link{Classify}})}
 
-\item{gs_method}{method for gene selection. In every node of the tree: `[fc]`\cr
+\item{gs_method}{method for gene selection. In every node of the tree:
 "fc" = quick method: either a fixed number (\code{n_genes})
-of genes is selected with the highest fold-change,
+of genes is selected with the highest fold-change (default),
 or genes are selected that have a fold-change higher than \code{fc_thresh}
 (the latter is used when \code{fix_ngenes = FALSE}) . \cr
 "wilcox": genes are selected based on fold-change (\code{fc_thresh}),
@@ -83,23 +85,29 @@ that are higher expressed in that type, than the others in that node.}
 per step per ref_cell_type should be printed}
 }
 \value{
-The chetah object:
-A list containing the following objects:
-NOTE: all objects that are lists themselfs contain one object
-per node in the classification tree
+A SingleCellExperiment with added:
+-  input$celltype_CHETAH
+a named character vector that can directly be used in any other workflow/method.
+-  "hidden" `int_colData` and `int_metadata`, not meant for direct interaction, but
+which can all be viewed and interacted with using: `PlotCHETAH` and `CHETAHshiny`
+A list containing the following objects is added to input$int_metadata$CHETAH
 \itemize{
   \item \strong{classification} a named vector: the classified types
   with the corresponding names of the input cells
-  \item \strong{prof_scores} A list with the profile scores
-  \item \strong{conf_scores} A list with the confidence scores
-  \item \strong{nodetypes} A list with the cell types under each node
-  \item \strong{correlations} A list with the correlations of the
-  input cells to the reference profiles
   \item \strong{tree} the hclust object of the classification tree
+  \item \strong{nodetypes} A list with the cell types under each node
   \item \strong{nodecoor} the coordinates of the nodes of the classification tree
   \item \strong{genes} A list per node, containing a list per
   reference type with the genes used for the profile scores of that type
   \item \strong{parameters} The parameters used
+}
+A nested DataFrame is added to input$int_colData$CHETAH.
+It holds 3 top-levels DataFrames
+\itemize{
+  \item \strong{prof_scores} A list with the profile scores
+  \item \strong{conf_scores} A list with the confidence scores
+  \item \strong{correlations} A list with the correlations of the
+  input cells to the reference profiles
 }
 }
 \description{
@@ -124,9 +132,8 @@ are called \strong{intermediate types}.  \cr
 }
 \examples{
 ## Melanoma data from Tirosh et al. (2016) Science
-input = data_mel
+input_mel
 ## Head-Neck data from Puram et al. (2017) Cancer Cell
-reference = reference_hn
-ls.str(reference) ## a list of expression matrices, group per cell type
-chetah <- CHETAHclassifier(input = input, ref_cells = reference)
+headneck_ref
+chetah <- CHETAHclassifier(input = input_mel, ref_cells = headneck_ref)
 }
