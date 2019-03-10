@@ -145,9 +145,9 @@ CHETAHclassifier <- function (input,
               gs_method %in% c("wilcox","fc"),
               is(clust_dist(matrix(seq_len(4), nrow = 2)), "dist"),
               !(is.null(ref_cells)) | !(is.null(ref_profiles)),
-              class(input) == "SingleCellExperiment",
-              if (!is.null(ref_cells)) class(ref_cells) == "SingleCellExperiment" else TRUE,
-              if (!is.null(ref_profiles)) class(ref_profiles) == "SingleCellExperiment" else TRUE)
+              (is(input, "SingleCellExperiment")),
+              if (!is.null(ref_cells)) is(ref_cells, "SingleCellExperiment") else TRUE,
+              if (!is.null(ref_profiles)) is(ref_profiles, "SingleCellExperiment") else TRUE)
 
     if (!is.null(ref_cells)) ref_check <- ref_cells else ref_check <- ref_profiles
     if (!(ref_ct %in% names(SingleCellExperiment::colData(ref_check)))) {
@@ -190,7 +190,7 @@ CHETAHclassifier <- function (input,
     ## Make reference_profiles (one average profile per reference cell type):
     if (is.null(ref_profiles)) {
         ref_profiles <- MeanRef(ref = ref_cells, method = "mean", ref_ct = ref_ct, ref_c = ref_c)
-    } else if (class(ref_profiles) == "SingleCellExperiment") {
+    } else if (is(ref_profiles, "SingleCellExperiment")) {
         ref_profiles <- SummarizedExperiment::assay(ref_profiles, ref_c)
     }
 
@@ -798,7 +798,7 @@ PlotTree <- function(input, col = NULL,
       ggtitle("Classification Tree")
 
     ## Delete layer that gives warnings
-    keep <- !unlist(lapply(ggdend$layers, function(x) class(x$geom)[1] == "GeomPoint"))
+    keep <- !unlist(lapply(ggdend$layers, function(x) is(x$geom, "GeomPoint")))
     ggdend$layers <- ggdend$layers[keep]
     if (return) return(ggdend) else suppressWarnings(print(ggdend))
 }   ## PlotTree
@@ -1062,7 +1062,7 @@ CorrelateReference <- function(ref_cells = NULL, ref_profiles = NULL, ref_ct = "
                         object = "ref_cells")    ## Make ref_profiles
     if (is.null(ref_profiles)) {
         ref_profiles <- MeanRef(ref = ref_cells, method = "mean", ref_ct = ref_ct, ref_c = ref_c)
-    } else if (class(ref_profiles) == "SingleCellExperiment") {
+    } else if (is(ref_profiles, "SingleCellExperiment")) {
         ref_profiles <- SummarizedExperiment::assay(ref_profiles, ref_c)
     }
 
