@@ -1,5 +1,5 @@
-#' A SingleCellExperiment on which CHEATHclassifier is run using the \code{headneck_ref}
-#' It holds subset of the Melanoma data, from Tirosh et al. (2016), Science (\code{\link{data_mel}})
+#' A SingleCellExperiment on which CHEATHclassifier is run using the \code{\link{headneck_ref}}
+#' It holds subset of the Melanoma data, from Tirosh et al. (2016), Science.
 #'
 #' @docType data
 #' @format This is a SingleCellExperiment

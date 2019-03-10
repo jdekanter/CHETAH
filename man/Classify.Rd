@@ -16,7 +16,7 @@ Selecting 0 will classify all cells, whereas 2 will result i
 n (almost) no cells to be classified. \cr
 \emph{recommended}: between 0.1 (fairly confident) and 1 (very confident)}
 
-\item{return_clas}{Instead of returning the chetah object, only return the classification vector}
+\item{return_clas}{Instead of returning the SingleCellExperiment, only return the classification vector}
 }
 \value{
 a charachter vector of the cell types with the names of the cells

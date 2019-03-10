@@ -16,6 +16,8 @@ CorrelateReference(ref_cells = NULL, ref_profiles = NULL,
 \item{ref_profiles}{similar to
 \code{\link{CHETAHclassifier}}'s ref_profiles}
 
+\item{ref_ct}{the colData of \code{ref_cells} where the cell types are stored.}
+
 \item{ref_c}{the assay of \code{ref_cells} to use}
 
 \item{return}{return the matrix that was used to produce the plot}

@@ -12,8 +12,8 @@ See the 'Info' tab for info about the method.", duration = 60)
   })
 
   ## Make short links (variables) to the chetah data [links without adjustment don't take up space]
-  coor <- CHETAH:::ch_env$chetah@reducedDims[[CHETAH:::ch_env$redD]]
-  counts <- CHETAH:::ch_env$chetah@assays$data[[CHETAH:::ch_env$input_c]]
+  coor <- SingleCellExperiment::reducedDim(CHETAH:::ch_env$chetah, CHETAH:::ch_env$redD)
+  counts <- SingleCellExperiment::assay(CHETAH:::ch_env$chetah, CHETAH:::ch_env$input_c)
   conf_scores <- CHETAH:::ch_env$chetah@int_colData$CHETAH$conf_scores
   prof_scores <- CHETAH:::ch_env$chetah@int_colData$CHETAH$prof_scores
   meta_data <- CHETAH:::ch_env$chetah@int_metadata$CHETAH
@@ -132,7 +132,7 @@ See the 'Info' tab for info about the method.", duration = 60)
     colnames(toplot) <- 'Cell type'
     clrs <- Clrs()
     names(clrs)[names(clrs) == "Unassigned"] <- "Unassigned (Node0)"
-    PlotTSNE(toplot = toplot, chetah = chetah, redD = redD, col = clrs,
+    PlotTSNE(toplot = toplot, input = chetah, redD = redD, col = clrs,
              pt.size = input$ptsize, return = TRUE, shiny = 'Cell type: ') +
       guides(color=guide_legend(title="Cell types")) +
       guides(color=guide_legend(override.aes = list(size=6)), legend_label = 'Cell type')
@@ -253,7 +253,7 @@ See the 'Info' tab for info about the method.", duration = 60)
     colnames(data) <- c('Confidence', 'cell type')
     coor_prof <- coor[SlctCells(), ]
     coor_prof <- coor_prof[rownames(data), ]
-    pl <- PlotTSNE(toplot = data, chetah = chetah, redD = redD,
+    pl <- PlotTSNE(toplot = data, input = chetah, redD = redD,
                    col = grad_col, limits = c(-2,2),
                    pt.size = input$ptsize, return = TRUE, shiny = 'confidence score: ',
                    x_limits = c(min(coor[,1]), max(coor[,1])),
@@ -350,7 +350,7 @@ See the 'Info' tab for info about the method.", duration = 60)
     colnames(toplot) <- c('Profile score', 'cell type')
     if (!is.null(rv2$prof)) toplot <- ReDefineData(event = zoom2(), data = toplot, coor = coor)
     coor <- coor[rownames(toplot), ]
-    pl <- PlotTSNE(toplot, chetah = chetah, redD = redD,
+    pl <- PlotTSNE(toplot, input = chetah, redD = redD,
                    col = grad_col,
                    limits = c(-1,1),
                    pt.size = input$ptsize, return = TRUE, shiny = 'Profile score: ',

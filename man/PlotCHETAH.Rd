@@ -12,6 +12,8 @@ PlotCHETAH(input, redD = NA, interm = FALSE, return = FALSE,
 \arguments{
 \item{input}{a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run}
 
+\item{redD}{the name of the reducedDim of the input to use for plotting}
+
 \item{interm}{color the intermediate instead of the final types}
 
 \item{return}{return the plot instead of printing it}
@@ -25,10 +27,6 @@ the classification plot should be returned}
 
 \item{col}{custom colors for the cell types. \emph{the colors
 should be named with the corresponding cell types}}
-
-\item{coor}{the tSNE, or other 2D vizualization coordinates.
-A matrix or dataframe with cells in the rows and x (e.g. tSNE_1)
- and y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively}
 }
 \value{
 a ggplot object

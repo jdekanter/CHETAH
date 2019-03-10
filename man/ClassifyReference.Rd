@@ -15,13 +15,12 @@ ClassifyReference(ref_cells, ref_ct = "celltypes", ref_c = "counts",
 
 \item{ref_ct}{the colData of \code{ref_cells} where the cell types are stored.}
 
+\item{ref_c}{same as \code{input_c}, but for the reference.}
+
 \item{return}{return the matrix that was used to produce the plot}
 
 \item{...}{Other variables to pass to
 \code{\link{CHETAHclassifier}}}
-
-\item{input_c}{the name of the assay of the input to use.
-\code{NA} (default) will use the first one.}
 }
 \value{
 A square plot. The rows are the original cell types,

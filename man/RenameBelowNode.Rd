@@ -15,14 +15,16 @@ RenameBelowNode(input, whichnode, replacement, nodes_exclude = NULL,
 
 \item{replacement}{a character vector that replaces the names under the selected Node}
 
-\item{nodes_exclude}{\emph{optional} numbers of the Nodes under the selected Node, that should \strong{NOT} be replaced}
+\item{nodes_exclude}{\emph{optional} the names of the types that should  \strong{NOT} be replaced}
+
+\item{types_exclude}{\emph{optional} numbers of the Nodes under the selected Node, that should \strong{NOT} be replaced}
 
 \item{node_only}{only rename the Node itself, without affecting the types under that Node}
 
-\item{return_clas}{Instead of returning the chetah object, only return the classification vector}
+\item{return_clas}{Instead of returning the SingleCellExperiment, only return the classification vector}
 }
 \value{
-The chetah object with the new classification or if `return_clas = TRUE` the classification vector.
+The SingleCellExperiment with the new classification or if `return_clas = TRUE` the classification vector.
 }
 \description{
 In the CHETAH classification, replace the name of a Node
@@ -30,5 +32,5 @@ and all the names of the final and intermediate types under that Node.
 }
 \examples{
 ## In the example data replace all T-cell subtypes by "T cell"
-chetah <- RenameBelowNode(input = input_mel, whichnode = 7, replacement = "T cell")
+input_mel <- RenameBelowNode(input = input_mel, whichnode = 7, replacement = "T cell")
 }

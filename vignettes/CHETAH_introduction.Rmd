@@ -25,7 +25,7 @@ knitr::opts_knit$set(
   root.dir = system.file('data', package = 'CHETAH')
 )
 library(Matrix)
-devtools::load_all()
+library(CHETAH)
 ```
 
 <style type = "text/css">
@@ -48,7 +48,28 @@ So, to run CHETAH, you will only need:
 
   * your input data
   * a reference dataset, annotated with cell types
-    + Both as a `SingleCellExperiment` object
+    + Both as a `SingleCellExperiment`
+
+## At a glance
+To run chetah on an input count matrix `input_counts` with t-SNE^1^ coordinates in `input_tsne`, and a reference count matrix `ref_counts` with celltypes vector `ref_ct`, run:  
+
+```{r glance, echo=TRUE, eval=FALSE}
+## Make SingleCellExperiments
+reference <- SingleCellExperiment(assays = list(counts = ref_counts),
+                                     colData = DataFrame(celltypes = ref_ct))
+
+input <- SingleCellExperiment(assays = list(counts = input_counts),
+                              reducedDims = SimpleList(TSNE = input_tsne))
+
+## Run CHETAH
+input <- CHETAHclassifier(input = input, ref_cells = reference)
+
+## Plot the classification
+PlotCHETAH(input)
+
+## Extract celltypes:
+celltypes <- input$celltype_CHETAH
+```
   
 __A comprehensive immune reference dataset for tumor data can be downloaded:__ [here](https://figshare.com/s/aaf026376912366f81b6). This reference can be used for all (tumor) input datasets.
 
@@ -104,8 +125,8 @@ library(CHETAH)
 
 # Preparing your data
 ## Required data
-To run CHETAH, if you don't have your data stored as `SingleCellExperiment` objects,
-you need 4 things:
+If you don't have your data stored as `SingleCellExperiments`, continue to [the next step](#sce).
+Otherwise, you need the following data before you begin:
 
   * input scRNA-seq count data of the cells to be classified
     + a data.frame or matrix, with cells in the columns and genes in the rows
@@ -117,11 +138,11 @@ you need 4 things:
   e.g. t-SNE^1^, PCA.
     + a two-column matrix/data.frame, with the cells in the rows and the two dimensions in the columns
 
-As an example on how to prepare typical data, we will use melanoma input data from [Tirosh et al.](10.1126/science.aad0501) 
+As an example on how to prepare your data, we will use melanoma input data from [Tirosh et al.](10.1126/science.aad0501) 
 and head-neck tumor reference data from [Puram et al.](10.1016/j.cell.2017.10.044) as an example.
 
 <div class = "blue"> For information on how to create your own reference see [Creating a Reference](#ref-prep) </div>
-    
+<br>    
 ```{r prepare_examp, echo=TRUE, eval=TRUE}
 ## To prepare the data from the package's internal data, run:
 celltypes_hn <- headneck_ref$celltypes
@@ -148,13 +169,12 @@ str(celltypes_hn)
 all.equal(names(celltypes_hn), colnames(counts_melanoma)) 
 ```
 
-## the `SingleCellExperiment` object
-CHETAH runs on an input and a reference dataset.
-Both should be provided in the format of a `SingleCellExperiment` object,
-which is an easy way to store differnt kinds of data together.
+## `SingleCellExperiments` {#sce}
+CHETAH expects data to be in the format of a `SingleCellExperiment`,
+which is an easy way to store different kinds of data together.
 Comprehensive information on this data type can be found [here](https://bioconductor.org/packages/release/bioc/html/SingleCellExperiment.html).
 
-A `SingleCellExperiment` object holds three things:
+A `SingleCellExperiment` holds three things:
 
   * counts: `assays`
     - as a `list` of `Matrices`
@@ -163,8 +183,17 @@ A `SingleCellExperiment` object holds three things:
   * reduced dimensions (e.g. t-SNE, PCA): `ReducedDims`
     - as a `SimpleList` of 2-column `data.frames` of `matrices`
 
-To store our example data in a `SingleCellExperiment` object, we do: 
+CHETAH needs 
 
+  * a reference `SingleCellExperiment` with:
+    + an assay
+    + a colData column with the corresponding cell types (default "celltypes")
+  * an input `SingleCellExperiment` with:
+    + an assay
+    + a reducedDim (e.g. t-SNE)
+
+For the example data, we would make the two objects by running:  
+  
 ```{r make_sce, echo=TRUE, eval=TRUE}
 ## For the reference we define a "counts" assay and "celltypes" metadata
 headneck_ref <- SingleCellExperiment(assays = list(counts = counts_hn),
@@ -175,7 +204,7 @@ input_mel <- SingleCellExperiment(assays = list(counts = counts_melanoma),
                                   reducedDims = SimpleList(TSNE = tsne_melanoma))
 ```
 
-<div class = "blue"> Note: CHETAH unctions default to the first `assay`/`reducedDim` in an object and "celltypes" for the reference's `colData`. See ?CHETAHclassifier and ?PlotCHETAH on how to change this behaviour. </div>
+<div class = "blue"> Note: CHETAH functions default to the first `assay`/`reducedDim` in an object and "celltypes" for the reference's `colData`. See ?CHETAHclassifier and ?PlotCHETAH on how to change this behaviour. </div>
 
 # Running CHETAH
 Now that the data is prepared, running chetah is easy:
@@ -269,7 +298,7 @@ PlotCHETAH(input = input_mel, tree = FALSE)
 ```
   
 ## Renaming types
-For renaming types in the tree, CHETAH comes witht the `RenameBelowNode` function.
+For renaming types in the tree, CHETAH comes with the `RenameBelowNode` function.
 This can be interesting when you are more interested in the general types, type in the different __intermediate__ and __final types__. 
 
 For the example data, let's say that we are not interested in all the different subtypes of T-cells (under Node6 and Node7), 
@@ -280,7 +309,7 @@ input_mel <- RenameBelowNode(input_mel, whichnode = 6, replacement = "T cell")
 PlotCHETAH(input = input_mel, tree = FALSE)
 ```
 
-To reset the classification to it's default, just run `Classify` again:
+To reset the classification to its default, just run `Classify` again:
 
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
 input_mel <- Classify(input_mel) ## the same as Classify(input_mel, 0.1)
@@ -343,7 +372,7 @@ If the reference is good, all types will correlate poorly or even better, will a
 CorrelateReference(ref_cells = headneck_ref)
 ```
 
-In this case, most cell types will be distinguishable: many types don't correlate, or anti-correlate. However, some types are quire similar. Regulatory and CD4 T cells, or CD4 and CD8 T cells, might be hard to distinguish in the input data.
+In this case, most cell types will be distinguishable: many types don't correlate, or anti-correlate. However, some types are quite similar. Regulatory and CD4 T cells, or CD4 and CD8 T cells, might be hard to distinguish in the input data.
   
 ### ClassifyReference
 Another check to see whether CHETAH can distinguish between the cell types in the reference is
@@ -359,9 +388,9 @@ In this reference, there is never more than 10% mix-up between two cell types. I
 subtypes of T cells. In this case the user should be aware that these cell type labels have the highest chance to interchange.
 
 <br><br>
-^1^ Van Der Maaten and Hinton (2008). Visualizing high-dimensional data using t-sne. _J Mach Learn Res_. 9: 2579-2605. doi: 10.1007/s10479-011-0841-3.
-^2^ Satija et al. (2015) Spatial reconstruction of single-cell gene expression data. _Nat Biotechnol_. 33(5):495-502. May 2015. doi: 10.1038/nbt.3192. More information at: https://satijalab.org/seurat/ 
-^3^ Picelli et al. (2013) Smart-seq2 for sensitive full-length transcriptome profiling in single cells. _Nat Methods_. 10(11): 1096-1100. doi: 10.1038/nmeth.2639.
+^1^ Van Der Maaten and Hinton (2008). Visualizing high-dimensional data using t-sne. _J Mach Learn Res_. 9: 2579-2605. doi: 10.1007/s10479-011-0841-3.  
+^2^ Satija et al. (2015) Spatial reconstruction of single-cell gene expression data. _Nat Biotechnol_. 33(5):495-502. May 2015. doi: 10.1038/nbt.3192. More information at: https://satijalab.org/seurat/   
+^3^ Picelli et al. (2013) Smart-seq2 for sensitive full-length transcriptome profiling in single cells. _Nat Methods_. 10(11): 1096-1100. doi: 10.1038/nmeth.2639.  
 
 ```{r}
 sessionInfo()

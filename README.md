@@ -5,9 +5,8 @@ Cell types are assigned by correlating the input data to a reference in a hierar
 A pre-print of the article describing CHETAH can be found at: https://www.biorxiv.org/content/10.1101/558908v1
 
 > NOTE: CHETAH is submitted to Bioconductor.
-> Currently, changes are being implemented to integrate CHETAH better into Bioconductor.
-> This could mean that if you install now, 
-> updating in the future would mean a neccesity to make slight adjustments to your scripts. 
+> CHETAH is now build on top of the `SingleCellExperiment` package,
+> which requires some adjustment of running CHETAH compared to the previous versions.
 
 The development version can be downloaded from github.
 Note that install_github does not always install all dependencies,
@@ -37,4 +36,24 @@ library(CHETAH)
 To get to know the basics of the CHETAH pacakge, please look at the vignette;
 ```{r echo=TRUE, eval=FALSE}
 vignette("CHETAH_introduction")
+```
+
+At a glance: to run chetah on an input count matrix `input_counts` with t-SNE coordinates in `input_tsne`, and a reference count matrix `ref_counts` with celltypes vector `ref_ct`, run:  
+
+```{r glance, echo=TRUE, eval=FALSE}
+## Make SingleCellExperiments
+reference <- SingleCellExperiment(assays = list(counts = ref_counts),
+                                     colData = DataFrame(celltypes = ref_ct))
+
+input <- SingleCellExperiment(assays = list(counts = input_counts),
+                              reducedDims = SimpleList(TSNE = input_tsne))
+
+## Run CHETAH
+input <- CHETAHclassifier(input = input, ref_cells = reference)
+
+## Plot the classification
+PlotCHETAH(input)
+
+## Extract celltypes:
+celltypes <- input$celltype_CHETAH
 ```

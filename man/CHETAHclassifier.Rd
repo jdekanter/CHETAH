@@ -135,5 +135,5 @@ are called \strong{intermediate types}.  \cr
 input_mel
 ## Head-Neck data from Puram et al. (2017) Cancer Cell
 headneck_ref
-chetah <- CHETAHclassifier(input = input_mel, ref_cells = headneck_ref)
+input_mel <- CHETAHclassifier(input = input_mel, ref_cells = headneck_ref)
 }

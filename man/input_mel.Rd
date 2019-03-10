@@ -3,8 +3,8 @@
 \docType{data}
 \name{input_mel}
 \alias{input_mel}
-\title{A SingleCellExperiment on which CHEATHclassifier is run using the \code{headneck_ref}
-It holds subset of the Melanoma data, from Tirosh et al. (2016), Science (\code{\link{data_mel}})}
+\title{A SingleCellExperiment on which CHEATHclassifier is run using the \code{\link{headneck_ref}}
+It holds subset of the Melanoma data, from Tirosh et al. (2016), Science.}
 \format{This is a SingleCellExperiment}
 \source{
 for the original data: \href{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE72056}{GEO}
@@ -13,8 +13,8 @@ for the original data: \href{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=
 input_mel
 }
 \description{
-A SingleCellExperiment on which CHEATHclassifier is run using the \code{headneck_ref}
-It holds subset of the Melanoma data, from Tirosh et al. (2016), Science (\code{\link{data_mel}})
+A SingleCellExperiment on which CHEATHclassifier is run using the \code{\link{headneck_ref}}
+It holds subset of the Melanoma data, from Tirosh et al. (2016), Science.
 }
 \references{
 Tirosh et al. (2016) Science 6282:189-196
