@@ -11,13 +11,23 @@ to only show information of the cells in the currently selected t-SNE window.
 See the 'Info' tab for info about the method.", duration = 60)
   })
 
+  ## Make short links (variables) to the chetah data [links without adjustment don't take up space]
+  coor <- SingleCellExperiment::reducedDim(CHETAH:::ch_env$chetah, CHETAH:::ch_env$redD)
+  counts <- SingleCellExperiment::assay(CHETAH:::ch_env$chetah, CHETAH:::ch_env$input_c)
+  conf_scores <- CHETAH:::ch_env$chetah@int_colData$CHETAH$conf_scores
+  prof_scores <- CHETAH:::ch_env$chetah@int_colData$CHETAH$prof_scores
+  meta_data <- CHETAH:::ch_env$chetah@int_metadata$CHETAH
+  chetah <- CHETAH:::ch_env$chetah
+  redD <- CHETAH:::ch_env$redD
+  input_c <- CHETAH:::ch_env$input_c
+
   ## ----------------------------------- Select colors ------------------
   ## Confidence t-SNE color gradient
   grad_col <- c(gplots::colorpanel(n = 50, low = '#2f2bad', mid = '#68cded', high = '#f4f4f4'),
                 gplots::colorpanel(n = 50, low = '#f4f4f4', mid = "#ff9f19", high = '#d60000'))
   ## Cell type colors
   Clrs <- reactive({
-    req(CHETAH:::ch_env$chetah)
+    req(chetah)
     colors <- c ('blue', 'gold', 'cyan3', 'navy',
                  'forestgreen', 'orange', 'darkolivegreen3',
                  'brown', 'green', 'purple','deepskyblue', 'cyan',
@@ -27,8 +37,8 @@ See the 'Info' tab for info about the method.", duration = 60)
                  'lightcyan', 'midnightblue', 'maroon1', 'orange3', 'palegreen',
                  'palevioletred1', 'peru', 'seagreen1', 'red3', 'snow2',
                  'steelblue1', 'turquoise')
-    nnodes <- names(CHETAH:::ch_env$chetah$nodetypes[[1]])
-    nodes <- c("Unassigned", paste0("Node", seq_len(length(CHETAH:::ch_env$chetah$nodetypes) - 1)))
+    nnodes <- names(meta_data$nodetypes[[1]])
+    nodes <- c("Unassigned", paste0("Node", seq_len(length(meta_data$nodetypes) - 1)))
 
     if(input$colornodes) {
       n <- nodes
@@ -55,10 +65,10 @@ See the 'Info' tab for info about the method.", duration = 60)
     data <- data.frame(data)
     if (!is.null(event)) {
       if(names(event)[1] == "xaxis.range[0]") {
-        select <- rownames(coor)[coor[,1] > event[[1]] &
-                                   coor[,1] < event[[2]] &
-                                   coor[,2] > event[[3]] &
-                                   coor[,2] < event[[4]]]
+        select <- rownames(coor)[coor[,1] > event[["xaxis.range[0]"]] &
+                                   coor[,1] < event[["xaxis.range[1]"]] &
+                                   coor[,2] > event[["yaxis.range[0]"]] &
+                                   coor[,2] < event[["yaxis.range[1]"]]]
         data <- data[rownames(data) %in% select, , drop = FALSE]
       }
     }
@@ -67,13 +77,13 @@ See the 'Info' tab for info about the method.", duration = 60)
   ## ----------------------------------- Render UI ---------------------------
   ## Extract classification
   classification <- reactive({
-    req(input$conf_thresh, CHETAH:::ch_env$chetah)
-    Classify(CHETAH:::ch_env$chetah, input$conf_thresh, return_clas = TRUE)
+    req(input$conf_thresh, chetah)
+    Classify(chetah, input$conf_thresh, return_clas = TRUE)
   })
   ## Select a node
   output$nodebutton <- renderUI ({
-    req(CHETAH:::ch_env$chetah)
-    splitmax <- length(CHETAH:::ch_env$chetah$conf_scores)
+    req(chetah)
+    splitmax <- length(conf_scores)
     choices <- seq_len(splitmax)
     names(choices) <- c(0, seq_len(splitmax - 1))
     selectInput(inputId = "whichnode",
@@ -83,7 +93,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   ## Select a type
   output$typebutton <- renderUI ({
     req(input$whichnode)
-    choices <- names(CHETAH:::ch_env$chetah$nodetypes[[as.numeric(input$whichnode)]])
+    choices <- names(meta_data$nodetypes[[as.numeric(input$whichnode)]])
     selectInput(inputId = "whichtype",
                 label = p("Choose a Type", class = 'opt'),
                 choices = choices)
@@ -91,7 +101,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   ## Select a type for differential expression
   output$typebutton_DE <- renderUI ({
     req(input$whichnode)
-    choices <- names(CHETAH:::ch_env$chetah$nodetypes[[1]])
+    choices <- names(meta_data$nodetypes[[1]])
     selectInput(inputId = "whichtype_DE",
                 label = p("Choose a Type", class = 'opt'),
                 choices = choices)
@@ -99,12 +109,12 @@ See the 'Info' tab for info about the method.", duration = 60)
   ## Check whether the current type is in the current branch, otherwise stop plotting
   typecorrect <- reactive({
     req(input$whichtype, input$whichnode)
-    input$whichtype %in% names(CHETAH:::ch_env$chetah$nodetypes[[as.numeric(input$whichnode)]])
+    input$whichtype %in% names(meta_data$nodetypes[[as.numeric(input$whichnode)]])
   })
   ## Select a gene for Tab 5
   output$geneselection <- renderUI ({
-    req(CHETAH:::ch_env$counts)
-    choices <- rownames(CHETAH:::ch_env$counts)
+    req(counts)
+    choices <- rownames(counts)
     selectInput(inputId = "whichgene",
                 label = p("Choose a Gene", class = 'opt'),
                 choices = choices)
@@ -112,7 +122,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   ## ----------------------------------- Tab 1 ---------------------------
   ## Classification t-SNE
   classTsne <- reactive({
-    req(classification(), CHETAH:::ch_env$coor)
+    req(classification(), coor)
     toplot <- classification()
     toplot[toplot == "Unassigned"] <- "Unassigned (Node0)"
     u_toplot <- unique(toplot)
@@ -122,14 +132,14 @@ See the 'Info' tab for info about the method.", duration = 60)
     colnames(toplot) <- 'Cell type'
     clrs <- Clrs()
     names(clrs)[names(clrs) == "Unassigned"] <- "Unassigned (Node0)"
-    PlotTSNE(toplot = toplot, coor = CHETAH:::ch_env$coor, col = clrs,
+    PlotTSNE(toplot = toplot, input = chetah, redD = redD, col = clrs,
              pt.size = input$ptsize, return = TRUE, shiny = 'Cell type: ') +
       guides(color=guide_legend(title="Cell types")) +
       guides(color=guide_legend(override.aes = list(size=6)), legend_label = 'Cell type')
   })
   output$classTsne <- plotly::renderPlotly({
     classTsne_plot <- plotly::ggplotly(classTsne(), tooltip = 'text')
-    plotly::config(classTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = F)
+    plotly::config(classTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = FALSE)
   })
   output$dwn_clTsne <- downloadHandler(
     filename = function() { paste0('CHETAH_classification_', input$conf_thresh, '.png') },
@@ -141,8 +151,8 @@ See the 'Info' tab for info about the method.", duration = 60)
   classTree <- reactive({
     req(Clrs())
     if (input$colornodes) interm <- TRUE else interm <- FALSE
-    if(interm) PlotTree(chetah = CHETAH:::ch_env$chetah, col_nodes = Clrs(), no_bgc = TRUE) else {
-      PlotTree(chetah = CHETAH:::ch_env$chetah, col = Clrs()) + ggtitle('')
+    if(interm) PlotTree(input = chetah, col_nodes = Clrs(), no_bgc = TRUE) else {
+      PlotTree(input = chetah, col = Clrs()) + ggtitle('')
     }
   })
   output$classTree <- renderPlot({ classTree() })
@@ -183,10 +193,10 @@ See the 'Info' tab for info about the method.", duration = 60)
     names(nodecl) <- names(Clrs())
     ## Color the branches of the current node
     which <- as.numeric(input$whichnode)
-    nodetp <- CHETAH:::ch_env$chetah$nodetypes[[which]]
-    lowerns <- (which+1):length(CHETAH:::ch_env$chetah$conf_scores)
-    nodes <- unlist(lapply(CHETAH:::ch_env$chetah$nodetypes[lowerns], function (x) {
-      if (all(names(x) %in% names(CHETAH:::ch_env$chetah$nodetypes[[which]]))) {
+    nodetp <- meta_data$nodetypes[[which]]
+    lowerns <- (which+1):length(conf_scores)
+    nodes <- unlist(lapply(meta_data$nodetypes[lowerns], function (x) {
+      if (all(names(x) %in% names(meta_data$nodetypes[[which]]))) {
         nodetp[names(x)][1]
       } else 3
     }))
@@ -195,7 +205,7 @@ See the 'Info' tab for info about the method.", duration = 60)
     nodecl[c(names(nodetp)[nodetp == 1], names(nodes)[nodes == 1])] <- '#ff0a0a'
     nodecl[c(names(nodetp)[nodetp == 2], names(nodes)[nodes == 2])] <- '#00a1ff'
     ## Plot tree
-    PlotTree(CHETAH:::ch_env$chetah, col = nodecl, col_nodes = nodecl, no_bgc = TRUE) + ggtitle('')
+    PlotTree(chetah, col = nodecl, col_nodes = nodecl, no_bgc = TRUE) + ggtitle('')
   })
   output$confTree <- renderPlot({ confTree() })
   output$dwn_confTree <- downloadHandler(
@@ -208,10 +218,10 @@ See the 'Info' tab for info about the method.", duration = 60)
   MaxConf <- reactive ({
     req(input$whichnode)
     which <- as.numeric(input$whichnode)
-    data <- CHETAH:::ch_env$chetah$conf_scores[[which]]
-    maxs <- apply(data, 1, max)
-    wmax <- apply(data, 1, which.max)
-    wmax <- CHETAH:::ch_env$chetah$nodetypes[[which]][colnames(data)][wmax]
+    data <- conf_scores[[which]]
+    maxs <- apply(as.matrix(data), 1, max)
+    wmax <- apply(as.matrix(data), 1, which.max)
+    wmax <- meta_data$nodetypes[[which]][colnames(data)][wmax]
     maxs[wmax == 2] <- -maxs[wmax == 2]
     return(maxs)
   })
@@ -220,12 +230,12 @@ See the 'Info' tab for info about the method.", duration = 60)
   SlctNodes <- reactive ({
     req(input$whichnode)
     which <- as.numeric(input$whichnode)
-    nodes <- unlist(lapply(CHETAH:::ch_env$chetah$nodetypes[(which):length(CHETAH:::ch_env$chetah$conf_scores)], function (x) {
-      all(names(x) %in% names(CHETAH:::ch_env$chetah$nodetypes[[which]]))
+    nodes <- unlist(lapply(meta_data$nodetypes[(which):length(conf_scores)], function (x) {
+      all(names(x) %in% names(meta_data$nodetypes[[which]]))
     }))
-    nodes <- paste0('Node', ((which - 1):(length(CHETAH:::ch_env$chetah$conf_scores) - 1))[nodes])
+    nodes <- paste0('Node', ((which - 1):(length(conf_scores) - 1))[nodes])
     nodes[grepl("Node0", nodes)] <- "Unassigned"
-    nodes <- c(nodes, names(CHETAH:::ch_env$chetah$nodetypes[[which]]))
+    nodes <- c(nodes, names(meta_data$nodetypes[[which]]))
     return(nodes)
   })
 
@@ -241,19 +251,19 @@ See the 'Info' tab for info about the method.", duration = 60)
     req(SlctCells(), MaxConf(), input$whichnode)
     data <- data.frame(MaxConf()[SlctCells()], classification()[SlctCells()])
     colnames(data) <- c('Confidence', 'cell type')
-    coor_prof <- CHETAH:::ch_env$coor[SlctCells(), ]
+    coor_prof <- coor[SlctCells(), ]
     coor_prof <- coor_prof[rownames(data), ]
-    pl <- PlotTSNE(data, coor_prof,
+    pl <- PlotTSNE(toplot = data, input = chetah, redD = redD,
                    col = grad_col, limits = c(-2,2),
                    pt.size = input$ptsize, return = TRUE, shiny = 'confidence score: ',
-                   x_limits = c(min(CHETAH:::ch_env$coor[,1]), max(CHETAH:::ch_env$coor[,1])),
-                   y_limits = c(min(CHETAH:::ch_env$coor[,2]), max(CHETAH:::ch_env$coor[,2])),
+                   x_limits = c(min(coor[,1]), max(coor[,1])),
+                   y_limits = c(min(coor[,2]), max(coor[,2])),
                    legend_label = 'Confidence')
     pl + labs(color = 'Confidence')
   })
   output$confTsne <- plotly::renderPlotly({
     confTsne_plot <- plotly::ggplotly(confTsne(), tooltip = c('text'), source = 'conf')
-    plotly::config(confTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = F)
+    plotly::config(confTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = FALSE)
   })
   output$dwn_confTsne <- downloadHandler(
     filename = function() { paste0('CHETAH_confidence_node', input$whichnode, '.png') },
@@ -277,12 +287,12 @@ See the 'Info' tab for info about the method.", duration = 60)
     req(SlctCells(), MaxConf(), input$whichnode, rv)
     ## select the data and sort
     which <- as.numeric(input$whichnode)
-    data <- CHETAH:::ch_env$chetah$prof_scores[[which]]
-    branchtypes <- sort(CHETAH:::ch_env$chetah$nodetypes[[which]])
+    data <- prof_scores[[which]]
+    branchtypes <- sort(meta_data$nodetypes[[which]])
     data <- data[ ,names(branchtypes)]
     data <- data[names(sort(MaxConf())), ]
     data <- data[rownames(data) %in% SlctCells(), ]
-    data <- ReDefineData(event = rv$conf, data = data, coor = CHETAH:::ch_env$coor)
+    data <- ReDefineData(event = rv$conf, data = data, coor = coor)
     classif <- data.frame('celltypes' = classification()[rownames(data)])
     if (nrow(data) > 0) {
       if (input$sortByType)  data <- data[rownames(classif)[order(classif)], ]
@@ -334,13 +344,13 @@ See the 'Info' tab for info about the method.", duration = 60)
   })
   ## Profiel score t-SNE
   profTsne <- reactive({
-    req(typecorrect(), CHETAH:::ch_env$chetah, rv2)
-    toplot <- data.frame(CHETAH:::ch_env$chetah$prof_scores[[as.numeric(input$whichnode)]][ ,input$whichtype, drop = FALSE],
+    req(typecorrect(), chetah, rv2)
+    toplot <- data.frame(prof_scores[[as.numeric(input$whichnode)]][ ,input$whichtype, drop = FALSE],
                          classification())
     colnames(toplot) <- c('Profile score', 'cell type')
-    if (!is.null(rv2$prof)) toplot <- ReDefineData(event = zoom2(), data = toplot, coor = CHETAH:::ch_env$coor)
-    coor <- CHETAH:::ch_env$coor[rownames(toplot), ]
-    pl <- PlotTSNE(toplot, CHETAH:::ch_env$coor,
+    if (!is.null(rv2$prof)) toplot <- ReDefineData(event = zoom2(), data = toplot, coor = coor)
+    coor <- coor[rownames(toplot), ]
+    pl <- PlotTSNE(toplot, input = chetah, redD = redD,
                    col = grad_col,
                    limits = c(-1,1),
                    pt.size = input$ptsize, return = TRUE, shiny = 'Profile score: ',
@@ -350,7 +360,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   })
   output$profTsne <- plotly::renderPlotly({
     profTsne_plot <- plotly::ggplotly(profTsne(), tooltip = c('text'), source = 'prof')
-    plotly::config(profTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = F)
+    plotly::config(profTsne_plot, modeBarButtonsToRemove = c('toggleSpikelines','lasso2d', 'select2d', 'hoverCompareCartesian'), collaborate = FALSE)
   })
   output$dwn_profTsne <- downloadHandler(
     filename = function() { paste0('CHETAH_prof_scores_node', input$whichnode, 'type_', input$whichtype, '.png') },
@@ -362,12 +372,12 @@ See the 'Info' tab for info about the method.", duration = 60)
   )
   ## Profile score Boxplot
   profBox <- reactive({
-    req(typecorrect(), CHETAH:::ch_env$chetah)
-    toplot <- as.data.frame(CHETAH:::ch_env$chetah$prof_scores[[as.numeric(input$whichnode)]][ ,input$whichtype, drop = FALSE])
-    clas   <- as.data.frame(CHETAH:::ch_env$chetah$classification)
+    req(typecorrect(), chetah)
+    toplot <- as.data.frame(prof_scores[[as.numeric(input$whichnode)]][ ,input$whichtype, drop = FALSE])
+    clas   <- as.data.frame(classification())
     event  <- plotly::event_data("plotly_relayout", source = 'prof')
-    toplot <- ReDefineData(event = event, data = toplot, coor = CHETAH:::ch_env$coor)
-    clas   <- ReDefineData(event = event, data = clas, coor = CHETAH:::ch_env$coor)
+    toplot <- ReDefineData(event = event, data = toplot, coor = coor)
+    clas   <- ReDefineData(event = event, data = clas, coor = coor)
     PlotBox(class = clas,
             toplot = toplot,
             col = Clrs())
@@ -392,10 +402,10 @@ See the 'Info' tab for info about the method.", duration = 60)
       names(nodecl) <- names(Clrs())
       ## Color the current type in the current node
       which <- as.numeric(input$whichnode)
-      lowerns <- (which+1):length(CHETAH:::ch_env$chetah$nodetypes)
-      nodetp <- CHETAH:::ch_env$chetah$nodetypes[[which]]
-      nodes <- unlist(lapply(CHETAH:::ch_env$chetah$nodetypes[lowerns], function (x) {
-        if (all(names(x) %in% names(CHETAH:::ch_env$chetah$nodetypes[[which]]))) {
+      lowerns <- (which+1):length(meta_data$nodetypes)
+      nodetp <- meta_data$nodetypes[[which]]
+      nodes <- unlist(lapply(meta_data$nodetypes[lowerns], function (x) {
+        if (all(names(x) %in% names(meta_data$nodetypes[[which]]))) {
           nodetp[names(x)][1]
         } else 3
       }))
@@ -409,7 +419,7 @@ See the 'Info' tab for info about the method.", duration = 60)
         nodecl[input$whichtype] <- '#ff0a0a'
       }
       ## Plot tree
-      PlotTree(CHETAH:::ch_env$chetah, col = nodecl, col_nodes = nodecl, no_bgc = TRUE) + ggtitle('')
+      PlotTree(chetah, col = nodecl, col_nodes = nodecl, no_bgc = TRUE) + ggtitle('')
     }
   })
   output$profTree <- renderPlot({ celltTree()() })
@@ -419,7 +429,7 @@ See the 'Info' tab for info about the method.", duration = 60)
     req(typecorrect(), classification(), SlctNodes())
     which <- as.numeric(input$whichnode)
     ## Select cells
-    branchtypes <- names(sort(CHETAH:::ch_env$chetah$nodetypes[[which]]))
+    branchtypes <- names(sort(meta_data$nodetypes[[which]]))
     if (input$inclnodes) {
       branchtypes <- c(branchtypes, SlctNodes()[grepl("Node|Unassigned", SlctNodes())])
     }
@@ -439,17 +449,17 @@ See the 'Info' tab for info about the method.", duration = 60)
     which <- as.numeric(input$whichnode)
     ## Select Genes
     if (input$largediff) {
-      finaltypes <- sort(CHETAH:::ch_env$chetah$nodetypes[[which]])
-      lh_genes <- CHETAH:::ch_env$chetah$genes[[which]][[input$whichtype]]
-      data <- as.matrix(CHETAH:::ch_env$counts[names(lh_genes), names(HMcells())])
-      r_branch <- apply(data[ ,names(HMcells())[HMcells() %in% names(finaltypes)[finaltypes == 1]]], 1, mean)
-      l_branch <- apply(data[ ,names(HMcells())[HMcells() %in% names(finaltypes)[finaltypes == 2]]], 1, mean)
+      finaltypes <- sort(meta_data$nodetypes[[which]])
+      lh_genes <- meta_data$genes[[which]][[input$whichtype]]
+      data <- as.matrix(counts[names(lh_genes), names(HMcells())])
+      r_branch <- apply(as.matrix(data[ ,names(HMcells())[HMcells() %in% names(finaltypes)[finaltypes == 1]]]), 1, mean)
+      l_branch <- apply(as.matrix(data[ ,names(HMcells())[HMcells() %in% names(finaltypes)[finaltypes == 2]]]), 1, mean)
       lh_genes <- lh_genes[names(sort(abs(r_branch - l_branch), decreasing = TRUE))[seq_len(input$n_genes)]]
       lh_genes <- sort(lh_genes)
       ## If no cells in one of the two branches: Don't sort
-      if (length(lh_genes) == 0) lh_genes <- sort(CHETAH:::ch_env$chetah$genes[[which]][[input$whichtype]][seq_len(input$n_genes)])
+      if (length(lh_genes) == 0) lh_genes <- sort(meta_data$genes[[which]][[input$whichtype]][seq_len(input$n_genes)])
     } else {
-      lh_genes <- sort(CHETAH:::ch_env$chetah$genes[[which]][[input$whichtype]][seq_len(input$n_genes)])
+      lh_genes <- sort(meta_data$genes[[which]][[input$whichtype]][seq_len(input$n_genes)])
     }
     lh_genes[lh_genes == 0] <- 'lowly'
     lh_genes[lh_genes == 1] <- 'highly'
@@ -461,12 +471,12 @@ See the 'Info' tab for info about the method.", duration = 60)
     req(HMgenes())
     which <- as.numeric(input$whichnode)
     ## Select cells
-    branchtypes <- names(sort(CHETAH:::ch_env$chetah$nodetypes[[which]]))
+    branchtypes <- names(sort(meta_data$nodetypes[[which]]))
     if (input$inclnodes) {
       branchtypes <- c(branchtypes, SlctNodes()[grepl("Node|Unassigned", SlctNodes())])
     }
     genes <- names(HMgenes())
-    data <- as.matrix(CHETAH:::ch_env$counts[genes, names(HMcells())])
+    data <- as.matrix(counts[genes, names(HMcells())])
 
     hl_clrs <- c('black', 'gray80')
     names(hl_clrs) <- c('lowly', 'highly')
@@ -514,7 +524,7 @@ See the 'Info' tab for info about the method.", duration = 60)
   ## ----------------------------------- Tab5  ---------------------------
   geneExpr <- reactive({
     req(input$whichgene, classification())
-    genes <- CHETAH:::ch_env$counts[input$whichgene, ]
+    genes <- counts[input$whichgene, ]
     #if(!is.null(log)) genes <- log2(genes + 1)
     genes <- cbind.data.frame(genes, as.data.frame(classification()))
     #if(!is.null(sub)) genes <- genes[genes$type %in% sub, ]

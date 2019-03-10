@@ -11,23 +11,23 @@
 #' See 'details' for a full explanation.
 #' \emph{NOTE: We recommend to use all the default parameters}
 #'
-#' @param input \strong{required}: an expression matrix (matrix, data.frame or Matrix)
-#' of the cells of interest, with cells in the columns and genes in the rows
-#' @param ref_cells \strong{required}: either \cr (1) a list of expression matrices,
-#' with one matrix for each reference cell type. IMPORTANT:
-#' \emph{the list has to be named with the corresponding cell types} \cr
-#' (2) one expression matrix: in this case provide the cell type label
-#' in the \code{ref_type} variable.
-#' @param ref_types \strong{required}: when ref_cells is one matrix,
-#' ref_types must be a named vector of the cell types.
-#' The names must correspond to the column names of \code{ref_cells}, in the same order.
+#' @param input \strong{required}: an input SingleCellExperiment.
+#' (see: \href{https://bioconductor.org/packages/release/bioc/html/SingleCellExperiment.html}{Bioconductor},
+#' and the vignette \code{browseVignettes("CHETAH")})
+#' @param ref_cells \strong{required}: A reference SingleCellExperiment, with
+#' the cell types in the "celltypes" colData (or otherwise defined in \code{ref_ct}.
 #' @param ref_profiles \emph{optional} In case of bulk-RNA seq or micro-arrays,
-#' an expression matrix with one (average) reference expression profile per cell type in the columns.
+#' an expression matrix with one (average) reference expression profile
+#' per cell type in the columns. (`ref_cells` must be left empty)
+#' @param ref_ct the colData of \code{ref_cells} where the cell types are stored.
+#' @param input_c the name of the assay of the input to use.
+#' \code{NA} (default) will use the first one.
+#' @param ref_c same as \code{input_c}, but for the reference.
 #' @param thresh the initial confidence threshold, which can be changed after running
 #' by \code{\link{Classify}})
-#' @param gs_method method for gene selection. In every node of the tree: `[fc]`\cr
+#' @param gs_method method for gene selection. In every node of the tree:
 #' "fc" = quick method: either a fixed number (\code{n_genes})
-#' of genes is selected with the highest fold-change,
+#' of genes is selected with the highest fold-change (default),
 #' or genes are selected that have a fold-change higher than \code{fc_thresh}
 #' (the latter is used when \code{fix_ngenes = FALSE}) . \cr
 #' "wilcox": genes are selected based on fold-change (\code{fc_thresh}),
@@ -64,23 +64,29 @@
 #' per step per ref_cell_type should be printed
 #'
 #' @return
-#' The chetah object:
-#' A list containing the following objects:
-#' NOTE: all objects that are lists themselfs contain one object
-#' per node in the classification tree
+#' A SingleCellExperiment with added:
+#' -  input$celltype_CHETAH
+#' a named character vector that can directly be used in any other workflow/method.
+#' -  "hidden" `int_colData` and `int_metadata`, not meant for direct interaction, but
+#' which can all be viewed and interacted with using: `PlotCHETAH` and `CHETAHshiny`
+#' A list containing the following objects is added to input$int_metadata$CHETAH
 #' \itemize{
 #'   \item \strong{classification} a named vector: the classified types
 #'   with the corresponding names of the input cells
-#'   \item \strong{prof_scores} A list with the profile scores
-#'   \item \strong{conf_scores} A list with the confidence scores
-#'   \item \strong{nodetypes} A list with the cell types under each node
-#'   \item \strong{correlations} A list with the correlations of the
-#'   input cells to the reference profiles
 #'   \item \strong{tree} the hclust object of the classification tree
+#'   \item \strong{nodetypes} A list with the cell types under each node
 #'   \item \strong{nodecoor} the coordinates of the nodes of the classification tree
 #'   \item \strong{genes} A list per node, containing a list per
 #'   reference type with the genes used for the profile scores of that type
 #'   \item \strong{parameters} The parameters used
+#' }
+#' A nested DataFrame is added to input$int_colData$CHETAH.
+#' It holds 3 top-levels DataFrames
+#' \itemize{
+#'   \item \strong{prof_scores} A list with the profile scores
+#'   \item \strong{conf_scores} A list with the confidence scores
+#'   \item \strong{correlations} A list with the correlations of the
+#'   input cells to the reference profiles
 #' }
 #' @details
 #' CHETAH will hierarchically cluster reference data
@@ -98,17 +104,20 @@
 #' @export
 #' @importFrom bioDist spearman.dist
 #' @importFrom stats as.dendrogram cutree ecdf hclust p.adjust wilcox.test
+#' @importFrom S4Vectors DataFrame
+#' @importFrom SummarizedExperiment assay assays
 #' @examples
 #' ## Melanoma data from Tirosh et al. (2016) Science
-#' input = data_mel
+#' input_mel
 #' ## Head-Neck data from Puram et al. (2017) Cancer Cell
-#' reference = reference_hn
-#' ls.str(reference) ## a list of expression matrices, group per cell type
-#' chetah <- CHETAHclassifier(input = input, ref_cells = reference)
+#' headneck_ref
+#' input_mel <- CHETAHclassifier(input = input_mel, ref_cells = headneck_ref)
 CHETAHclassifier <- function (input,
                               ref_cells =       NULL,
-                              ref_types =       NULL,
                               ref_profiles =    NULL,
+                              ref_ct =          "celltypes",
+                              input_c =         NA,
+                              ref_c =           NA,
                               thresh =          0.1,
                               gs_method =       "fc",
                               cor_method =      "spearman",
@@ -124,143 +133,165 @@ CHETAHclassifier <- function (input,
                               only_pos =        FALSE,
                               print_steps =     FALSE) {
 
-  stopifnot(is.logical(plot.tree),
-            is.logical(subsample),
-            is.logical(only_pos),
-            is.numeric(n_genes),
-            is.numeric(pc_thresh),
-            is.numeric(p_thresh),
-            is.numeric(fc_thresh),
-            is.numeric(thresh),
-            cor_method %in% c("pearson", "kendall", "spearman", "cosine"),
-            gs_method %in% c("wilcox","fc"),
-            is(clust_dist(matrix(seq_len(4), nrow = 2)), "dist"),
-            !(is.null(ref_cells)) | !(is.null(ref_profiles)),
-            if (!is.null(ref_types)) is.character(ref_types) | is.vector(ref_types) else TRUE)
+    stopifnot(is.logical(plot.tree),
+              is.logical(subsample),
+              is.logical(only_pos),
+              is.numeric(n_genes),
+              is.numeric(pc_thresh),
+              is.numeric(p_thresh),
+              is.numeric(fc_thresh),
+              is.numeric(thresh),
+              cor_method %in% c("pearson", "kendall", "spearman", "cosine"),
+              gs_method %in% c("wilcox","fc"),
+              is(clust_dist(matrix(seq_len(4), nrow = 2)), "dist"),
+              !(is.null(ref_cells)) | !(is.null(ref_profiles)),
+              class(input) == "SingleCellExperiment",
+              if (!is.null(ref_cells)) class(ref_cells) == "SingleCellExperiment" else TRUE,
+              if (!is.null(ref_profiles)) class(ref_profiles) == "SingleCellExperiment" else TRUE)
 
-  if (!is.list(ref_cells) & is.null(ref_types) & is.null(ref_profiles)) {
-      stop("Please provide a vector of the reference cell types in 'ref_types'")
-  }
-  if (!is.list(ref_cells) & !is.null(ref_types)) {
-      if (!all.equal(colnames(ref_cells), names(ref_types))) {
-          stop("the names of 'ref_cells' must be excatly the same as the colnames of 'ref_cells'")
-      }
-  }
-  if (!is.null(ref_profiles)) if (sum(is.na(ref_profiles)) != 0) stop("'ref_profiles' cannot contain NA values'")
-  if (is.matrix(ref_cells)) if (sum(is.na(ref_cells)) != 0) stop("'ref_cells' cannot contain NA values'")
-  if (is.list(ref_cells)) if (sum(unlist(lapply(ref_cells, function (x) sum(is.na(x))))) != 0) stop("'ref_cells' cannot contain NA values'")
+    if (!is.null(ref_cells)) ref_check <- ref_cells else ref_check <- ref_profiles
+    if (!(ref_ct %in% names(SingleCellExperiment::colData(ref_check)))) {
+        stop(paste0("Please add the cell type data in the colData of your reference and supply it's name to 'ref_ct').
+             Current colData:", paste(names(SingleCellExperiment::colData(ref_check)), collapse = " ")))
+    }; rm(ref_check)
 
-  cat('Preparing data....    \n')
-  if (is.null(ref_cells)) {
-      warning("Running without reference cells: classification only based on correlations \n", immediate. = TRUE)
-  }
+    input_c <- TestCHETAH(input = input, input_c = input_c,
+                          runBefore = FALSE, object = "input")
+    if (!is.null(ref_cells)) {
+        ref_c <- TestCHETAH(input = ref_cells, input_c = ref_c,
+                            runBefore = FALSE, parameter = "ref_c",
+                            object = "ref_cells")
+    }
 
-  ## If ref_cells is a list, make it one matrix and construct ref_types
-  if (is.list(ref_cells)) {
-      ref_types <- vector()
-      for (i in seq_len(length(ref_cells))) {
-          ref_types <- c(ref_types, rep(names(ref_cells)[i], ncol(ref_cells[[i]])))
-      }
-      ref_cells <- do.call(cbind, ref_cells)
-      names(ref_types) <- colnames(ref_cells)
-  }
+    if (is.null(ref_cells)) {
+        message("Running without reference cells: classification will only be based on correlations \n")
+    }
+    cat('Preparing data....    \n')
 
-  ## Same genes in reference as input & extract cell type names
-  if (!is.null(ref_cells)) {
-      if (!setequal(rownames(input), rownames(ref_cells))) {
-          ref_cells <- equal.genes(input, ref_cells)
-      }
-      uniq_ct <- unique(ref_types)
-  } else {
-      if (!setequal(rownames(input), rownames(ref_profiles))) {
-          ref_profiles <- equal.genes(input, ref_profiles)
-      }
-      uniq_ct <- colnames(ref_profiles)
-  }
-  if (any(grepl("Node", uniq_ct))) {
-      stop("Please don't use 'Node' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'node'")
-  }
-  if (any(grepl("Unassigned", uniq_ct))) {
-      stop("Please don't use 'Unassigned' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'unassigned'")
-  }
-  ## Make reference_profiles (one average profile per reference cell type):
-  if (is.null(ref_profiles)) {
-      ref_profiles <- MeanRef(ref_cells, method = "mean", ref_types = ref_types)
-  }
+    ## Same genes in reference as input & extract cell type names
+    if (!is.null(ref_cells)) {
+        if (!setequal(rownames(input), rownames(ref_cells))) {
+            ref_cells <- EqualGenes(input, ref_cells)
+        }
+        uniq_ct <- unique(ref_cells[[ref_ct]])
+    } else {
+        if (!setequal(rownames(input), rownames(ref_profiles))) {
+            ref_profiles <- EqualGenes(input, ref_profiles)
+        }
+        uniq_ct <- unique(ref_profiles[[ref_ct]])
+    }
+    if (any(grepl("Node", uniq_ct))) {
+        stop("Please don't use 'Node' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'node'")
+    }
+    if (any(grepl("Unassigned", uniq_ct))) {
+        stop("Please don't use 'Unassigned' in any cell type name. This is essential for the method to run. Please change, e.g. to lower case 'unassigned'")
+    }
 
-  ## Make an environment to store the classification information and variables in
-  Env <- new.env(parent = emptyenv())
-  variables <- list(nodeheigths = c(), ##the heights of the different tree nodes, for plotting convenience
-                    profilescores = list(), # a list of the profile scores per node
-                    nodetypes = list(), # a list of the reference cell types per node
-                    correlations = list(), # a list of the input correlations per node
-                    confidencescores = list(), # a list of the confidence scores per node
-                    genes = list(), # The gene names that are used in each node
-                    counter = 0, # to keep track of the node depth/number
-                    tree = NULL, # will be filled with the classification tree
-                    p_thresh = p_thresh, # the p-value threshold for wilcox
-                    fc_thresh = fc_thresh, # the fold-change threshold for wilcox (or fc, when fix_ngenes = FALSE)
-                    pc_thresh = pc_thresh, # the % of expression threshold for wilcox
-                    fix_ngenes = fix_ngenes, # boolean, use a fixed number of genes?
-                    subsample = subsample, # boolean, subsample ref_types, to min(table(ref_types))
-                    only_pos = only_pos, # use only higher expressed genes
-                    clust_dist = clust_dist, # clustering distance
-                    cor_method = cor_method, # correlation method
-                    gs_method = gs_method, # gene selection method (fold-change ('fc'), or wilcox)
-                    print_steps = print_steps, # print the number of selected genes in each step?
-                    clust_method = clust_method, # clustering method
-                    n_genes = n_genes) # number of genes used, if fix_ngenes = TRUE
-  Env <- list2env(variables, envir = Env)
+    ## Make reference_profiles (one average profile per reference cell type):
+    if (is.null(ref_profiles)) {
+        ref_profiles <- MeanRef(ref = ref_cells, method = "mean", ref_ct = ref_ct, ref_c = ref_c)
+    } else if (class(ref_profiles) == "SingleCellExperiment") {
+        ref_profiles <- SummarizedExperiment::assay(ref_profiles, ref_c)
+    }
 
-  ## Calculate the profile and confidence scores in each node
-  cat('Running analysis... \n')
-  SplitNodes(Env = Env, # the environment
-             input = input, # the input expression matrix
-             all_ref_cells = ref_cells, ## matrix of all reference cells
-             ref_types = ref_types, ## types of the all_ref_cells matrix
-             ref_profiles =  ref_profiles) ## matrix of the average reference profiles per cell type
+    ## Make ref_types
+    if (!is.null(ref_cells)) {
+        ref_types <- ref_cells[[ref_ct]]
+        names(ref_types) <- colnames(ref_cells)
+    } else {
+        ref_types <- NULL
+    }
 
-  ## For plotting purposes, find the x coordinates of the nodes of the classification tree
-  heights <- Env$nodeheigths
-  hc <- Env$tree
-  coor <- cbind("y" = heights, "x" = rep(NA, length(heights)))
-  coordinates <- dendextend::get_nodes_xy(as.dendrogram(hc))
-  coordinates <- coordinates[coordinates[,2] != 0, ]
-  for (i in seq_len(nrow(coor))) {
-      x <- coordinates[ ,1][coordinates[ ,2] == coor[i,1]]
-      coor[i,2] <- x
-  }
+    ## Make an environment to store the classification information and variables in
+    Env <- new.env(parent = emptyenv())
+    variables <- list(nodeheigths = c(), ##the heights of the different tree nodes, for plotting convenience
+                      profilescores = S4Vectors::DataFrame(initial = rep(NA, ncol(input))), # a list of the profile scores per node
+                      nodetypes = list(), # a list of the reference cell types per node
+                      correlations = S4Vectors::DataFrame(initial = rep(NA, ncol(input))), # a list of the input correlations per node
+                      confidencescores = S4Vectors::DataFrame(initial = rep(NA, ncol(input))), # a list of the confidence scores per node
+                      genes = list(), # The gene names that are used in each node
+                      counter = 0, # to keep track of the node depth/number
+                      tree = NULL, # will be filled with the classification tree
+                      p_thresh = p_thresh, # the p-value threshold for wilcox
+                      fc_thresh = fc_thresh, # the fold-change threshold for wilcox (or fc, when fix_ngenes = FALSE)
+                      pc_thresh = pc_thresh, # the % of expression threshold for wilcox
+                      fix_ngenes = fix_ngenes, # boolean, use a fixed number of genes?
+                      subsample = subsample, # boolean, subsample ref_types, to min(table(ref_types))
+                      only_pos = only_pos, # use only higher expressed genes
+                      clust_dist = clust_dist, # clustering distance
+                      cor_method = cor_method, # correlation method
+                      gs_method = gs_method, # gene selection method (fold-change ('fc'), or wilcox)
+                      print_steps = print_steps, # print the number of selected genes in each step?
+                      clust_method = clust_method, # clustering method
+                      n_genes = n_genes, # number of genes used, if fix_ngenes = TRUE
+                      input_c = input_c,
+                      ref_c = ref_c)
+    Env <- list2env(variables, envir = Env)
 
-  ## Define output
-  parameters <- list(available.types = colnames(ref_profiles),
-                     n_genes = n_genes,
-                     cor_method = cor_method,
-                     clust_method = clust_method,
-                     clust_dist = clust_dist,
-                     thresh = thresh,
-                     subsample = subsample,
-                     only_pos = only_pos,
-                     pc_thresh = pc_thresh,
-                     p_thresh = p_thresh,
-                     fc_thresh = fc_thresh,
-                     gs_method = gs_method,
-                     fix_ngenes = fix_ngenes)
+    ## Calculate the profile and confidence scores in each node
+    cat('Running analysis... \n')
+    SplitNodes(Env = Env, # the environment
+               input = input, # the input expression matrix
+               ref_cells = ref_cells, ## matrix of all reference cells
+               ref_types = ref_types, ## types of the ref_cells matrix
+               ref_profiles =  ref_profiles) ## matrix of the average reference profiles per cell type
 
-  output <- list(prof_scores = Env$profilescores,
-                 conf_scores = Env$confidencescores,
-                 nodetypes = Env$nodetypes,
-                 correlations = Env$correlations,
-                 tree = hc,
-                 nodecoor = coor,
-                 genes = Env$genes,
-                 parameters = parameters)
+    ## For plotting purposes, find the x coordinates of the nodes of the classification tree
+    heights <- Env$nodeheigths
+    hc <- Env$tree
+    coor <- cbind("y" = heights, "x" = rep(NA, length(heights)))
+    coordinates <- dendextend::get_nodes_xy(as.dendrogram(hc))
+    coordinates <- coordinates[coordinates[,2] != 0, ]
+    for (i in seq_len(nrow(coor))) {
+        x <- coordinates[ ,1][coordinates[ ,2] == coor[i,1]]
+        coor[i,2] <- x
+    }
 
-  ## Finally, perform the actual classification
-  output <- Classify(chetah = output,
-                     thresh = thresh)
+    ## Remove the initial columns of the DataFrames
+    colnames(Env$profilescores) <- paste0("Node", seq_len(length(Env$profilescores)) - 1)
+    colnames(Env$confidencescores) <- paste0("Node", seq_len(length(Env$confidencescores)) - 1)
+    colnames(Env$correlations) <- paste0("Node", seq_len(length(Env$correlations)) - 1)
 
-  if (plot.tree) PlotTree(chetah = output)
-  return(output)
+    ## Remove with only bulk profiles
+    if (is.null(ref_cells)) {
+        Env$profilescores <- NULL
+        Env$confidencescores <- NULL
+    }
+
+    ## Define output
+    parameters <- list(available.types = colnames(ref_profiles),
+                       n_genes = n_genes,
+                       cor_method = cor_method,
+                       clust_method = clust_method,
+                       clust_dist = clust_dist,
+                       thresh = thresh,
+                       subsample = subsample,
+                       only_pos = only_pos,
+                       pc_thresh = pc_thresh,
+                       p_thresh = p_thresh,
+                       fc_thresh = fc_thresh,
+                       gs_method = gs_method,
+                       fix_ngenes = fix_ngenes)
+
+    ## Add hidden meta-data
+    SingleCellExperiment::int_colData(input)$CHETAH <- S4Vectors::DataFrame(prof_scores = rep(NA, ncol(input)))
+    SingleCellExperiment::int_colData(input)$CHETAH$prof_scores <- Env$profilescores
+    SingleCellExperiment::int_colData(input)$CHETAH$conf_scores <- Env$confidencescores
+    SingleCellExperiment::int_colData(input)$CHETAH$correlations <- Env$correlations
+
+    ## Add the general metadata
+    SingleCellExperiment::int_metadata(input)$CHETAH <- list(nodetypes = Env$nodetypes,
+                                   tree = hc,
+                                   nodecoor = coor,
+                                   genes = Env$genes,
+                                   parameters = parameters,
+                                   input_c = input_c)
+
+    ## Add the (visible) classification meta-data
+    input <- Classify(input = input, thresh = thresh)
+
+    if (plot.tree) PlotTree(input = input)
+    return(input)
 }     ### CHETAHclassifier
 ## -----------------------------------------------------------------------------
 
@@ -269,54 +300,54 @@ CHETAHclassifier <- function (input,
 # calls ScoreNode and reruns itself on the next-higher node(s).
 # The fact that this function is recursive,
 # makes it possible to do all calculations from top to bottom
-SplitNodes <- function (input, Env, ref_profiles, all_ref_cells, ref_types) {
+SplitNodes <- function (input, Env, ref_profiles, ref_cells, ref_types) {
 
-  ## Keep track of the number of the current node
-  Env$counter <- Env$counter + 1
+    ## Keep track of the number of the current node
+    Env$counter <- Env$counter + 1
 
-  ## (Re)construct the classification tree and cut at the highest node
-  hc <- hclust(Env$clust_dist(t(ref_profiles)), method = Env$clust_method)
-  branches <- cutree(hc, k = 2)
+    ## (Re)construct the classification tree and cut at the highest node
+    hc <- hclust(Env$clust_dist(t(ref_profiles)), method = Env$clust_method)
+    branches <- cutree(hc, k = 2)
 
-  ## Get the names of the celltypes in the two branches and save
-  branch1 <- names(branches[branches == 1])
-  branch2 <- names(branches[branches == 2])
-  Env$nodetypes[[Env$counter]] <- branches
-  Env$nodeheigths[Env$counter] <- max(hc$height)
-  if (Env$counter == 1) Env$tree <- hc
-  if (Env$print_steps) cat("Left node: ", branch1, "\nRight node: ", branch2, "\n")
+    ## Get the names of the celltypes in the two branches and save
+    branch1 <- names(branches[branches == 1])
+    branch2 <- names(branches[branches == 2])
+    Env$nodetypes[[Env$counter]] <- branches
+    Env$nodeheigths[Env$counter] <- max(hc$height)
+    if (Env$counter == 1) Env$tree <- hc
+    if (Env$print_steps) cat("Left node: ", branch1, "\nRight node: ", branch2, "\n")
 
-  ## Calculate correlations, profile and confidence scores
-  ScoreNode(branch1 = branch1,
-            branch2 = branch2,
-            input = input,
-            Env = Env,
-            ref_profiles = ref_profiles,
-            all_ref_cells = all_ref_cells,
-            ref_types = ref_types)
+    ## Calculate correlations, profile and confidence scores
+    ScoreNode(branch1 = branch1,
+              branch2 = branch2,
+              input = input,
+              Env = Env,
+              ref_profiles = ref_profiles,
+              ref_cells = ref_cells,
+              ref_types = ref_types)
 
-  ## If a branch contains 2 or more cell types (and thus other nodes),
-  ## perform the steps in the lower nodes
-  if (length(branch1) > 1) {
-    SplitNodes(ref_profiles = ref_profiles[ ,branch1],input = input, Env = Env,
-               all_ref_cells = all_ref_cells, ref_types = ref_types)
-  }
-  if (length(branch2) > 1) {
-    SplitNodes(ref_profiles = ref_profiles[ ,branch2], input = input, Env = Env,
-               all_ref_cells = all_ref_cells, ref_types = ref_types)
-  }
+    ## If a branch contains 2 or more cell types (and thus other nodes),
+    ## perform the steps in the lower nodes
+    if (length(branch1) > 1) {
+      SplitNodes(ref_profiles = ref_profiles[ ,branch1],input = input, Env = Env,
+                 ref_cells = ref_cells, ref_types = ref_types)
+    }
+    if (length(branch2) > 1) {
+      SplitNodes(ref_profiles = ref_profiles[ ,branch2], input = input, Env = Env,
+                 ref_cells = ref_cells, ref_types = ref_types)
+    }
 }      ### SplitNodes
 ## -----------------------------------------------------------------------------
 
 # Called by the CHETAHclassifier via SplitNode.
 # Does the actual gene selections and correlations
 # and calculates confidence scores.
-ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, all_ref_cells, ref_types) {
+ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, ref_cells, ref_types) {
     leaves <- c(branch1, branch2)
     Env$genes[[Env$counter]] <- list()
 
     ##################### First, gene selection and correlations are done for each reference cell type
-    for(uniquetype in seq_len(length(leaves))) {
+    for (uniquetype in seq_len(length(leaves))) {
 
         ## save names of cell types in the same branch and cell types in the other branch
         current_type <- leaves[uniquetype]
@@ -324,7 +355,7 @@ ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, all_ref_cell
         oth_branch <- if(current_type %in% branch1) branch2 else branch1
 
         ## Subsample types with many cells.
-        if (!is.null(all_ref_cells)) {
+        if (!is.null(ref_cells)) {
             current_cells <- names(ref_types[ref_types %in% current_type])
 
             if (Env$subsample) {
@@ -344,10 +375,10 @@ ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, all_ref_cell
 
         ## select genes that are differentially expressed
         ## between current type and the other branch
-        if (Env$gs_method == "wilcox" & !is.null(all_ref_cells)) {
+        if (Env$gs_method == "wilcox" & !is.null(ref_cells)) {
             genes <- doWilcox(current_cells = current_cells,
                               otherbranch_c = otherbranch_c,
-                              all_ref_cells = all_ref_cells,
+                              ref_cells = ref_cells,
                               Env = Env)
         } else {
             genes <- FindDiscrGenes(ref_profiles = ref_profiles,
@@ -360,16 +391,19 @@ ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, all_ref_cell
 
         ## Correlate to the reference cell type using the just selected genes
         if (Env$cor_method == "cosine") {
-            correlations <- doCosine(genes = genes, input = input,
-                                     all_ref_cells = all_ref_cells,
+            correlations <- doCosine(genes = genes,
+                                     input = input,
+                                     ref_cells = ref_cells,
                                      current_cells = current_cells,
                                      otherbranch_c = otherbranch_c,
                                      ref_profiles = ref_profiles,
-                                     type = current_type)
+                                     type = current_type,
+                                     Env = Env)
         } else {
             correlations <- doCorrelation(ref_profiles = ref_profiles,
-                                          genes = genes, input = input,
-                                          all_ref_cells = all_ref_cells,
+                                          genes = genes,
+                                          input = input,
+                                          ref_cells = ref_cells,
                                           current_cells = current_cells,
                                           otherbranch_c = otherbranch_c,
                                           type = current_type,
@@ -383,7 +417,7 @@ ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, all_ref_cell
         cor_ob <- correlations[["cor_ob"]]
 
         ## produce the profile scores
-        if(!is.null(all_ref_cells)) {
+        if(!is.null(ref_cells)) {
             good <- ecdf(cor_t)
             false <- ecdf(cor_ob)
             goodvalues <- good(cor_i) ; names(goodvalues) <- colnames(input)
@@ -392,10 +426,10 @@ ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, all_ref_cell
         } else profile_score <- NA
 
         ## Add the profile scores and correlations of all types to one matrix
-        if (uniquetype == 1) prof_scores <- as.matrix(profile_score) else {
+        if (uniquetype == 1) prof_scores <- S4Vectors::DataFrame(profile_score) else {
             prof_scores <- cbind(prof_scores, profile_score)
         }
-        if (uniquetype == 1) cors <- as.matrix(cor_i) else cors <- cbind(cors, cor_i)
+        if (uniquetype == 1) cors <- S4Vectors::DataFrame(cor_i) else cors <- cbind(cors, cor_i)
 
     } ########### End of correlations per reference type
 
@@ -405,7 +439,7 @@ ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, all_ref_cell
     if (!is.null(prof_scores)) colnames(prof_scores) <- leaves
 
     ## Calculate confidence scores
-    if(!is.null(all_ref_cells)) {
+    if(!is.null(ref_cells)) {
         for(type_number in seq_len(length(leaves))) {
 
             ## Select type
@@ -420,7 +454,7 @@ ScoreNode <- function  (ref_profiles, branch1, branch2, input, Env, all_ref_cell
             confidence <- prof_scores[ ,type_number] - prof_scores_ob
 
             ## save confidence score
-            if (type_number == 1) conf_scores <- as.matrix(confidence) else {
+            if (type_number == 1) conf_scores <- S4Vectors::DataFrame(confidence) else {
                 conf_scores <- cbind(conf_scores, confidence)
             }
         }
@@ -473,34 +507,44 @@ FindDiscrGenes <- function (type, other_branch, ref_profiles, Env) {
 
 ## -----------------------------------------------------------------------------
 # Used by ScoreNode to do the gene selections using the Wilcox test
-doWilcox <- function (current_cells, otherbranch_c, all_ref_cells, Env) {
+doWilcox <- function (current_cells, otherbranch_c, ref_cells, Env) {
 
     ## First calculate the fld change and percentage of cells expressing the gene, per gene.
-    fld <- apply(all_ref_cells, 1, function (z) {
+    fld <- apply(SummarizedExperiment::assay(ref_cells, Env$ref_c), 1, function (z) {
         mean(z[current_cells]) - mean(z[otherbranch_c])
     })
-    pct1 <- apply(all_ref_cells, 1, function (z) {
+    pct1 <- apply(SummarizedExperiment::assay(ref_cells, Env$ref_c), 1, function (z) {
         sum(z[current_cells] > 0) / length(current_cells)
     })
-    pct2 <- apply(all_ref_cells, 1, function (z) {
+    pct2 <- apply(SummarizedExperiment::assay(ref_cells, Env$ref_c), 1, function (z) {
         sum(z[otherbranch_c] > 0) / length(otherbranch_c)
     })
 
-    ## Take only the genes in the all_ref_cells that exceed the fld and pct thresholds
+    ## Take only the genes in the ref_cells that exceed the fld and pct thresholds
     ## To prevent no genes exceeding the threshold, increase the threshold if necessary when needed
     fc_thresh <- Env$fc_thresh
     if(Env$only_pos) {
-        testgenes  <- all_ref_cells[((pct1 > Env$pc_thresh | pct2 > Env$pc_thresh) & fld > fc_thresh), , drop = FALSE]
+        testgenes  <- SummarizedExperiment::assay(ref_cells, Env$ref_c)[((pct1 > Env$pc_thresh |
+                                                pct2 > Env$pc_thresh) &
+                                                fld > fc_thresh), , drop = FALSE]
         while (nrow(testgenes) < 3) {
             fc_thresh <- 0.5 * fc_thresh
-            testgenes <- all_ref_cells[((pct1 > Env$pc_thresh | pct2 > Env$pc_thresh) & (fld > fc_thresh)), , drop = FALSE]
+            testgenes <- SummarizedExperiment::assay(ref_cells, Env$ref_c)[((pct1 > Env$pc_thresh |
+                                                   pct2 > Env$pc_thresh) &
+                                                   (fld > fc_thresh)), , drop = FALSE]
         }
     } else {
-        testgenes <- all_ref_cells[((pct1 > Env$pc_thresh | pct2 > Env$pc_thresh) & (fld > fc_thresh | fld < -fc_thresh )), , drop = FALSE]
+        testgenes <- SummarizedExperiment::assay(ref_cells, Env$ref_c)[((pct1 > Env$pc_thresh |
+                                               pct2 > Env$pc_thresh) &
+                                               (fld > fc_thresh |
+                                                fld < -fc_thresh)), , drop = FALSE]
         fc_thresh <- Env$fc_thresh
         while (nrow(testgenes) < 3) {
             fc_thresh <- 0.5 * fc_thresh
-            testgenes <- all_ref_cells[((pct1 > Env$pc_thresh | pct2 > Env$pc_thresh) & (fld > fc_thresh | fld < -fc_thresh )), , drop = FALSE]
+            testgenes <- SummarizedExperiment::assay(ref_cells, Env$ref_c)[((pct1 > Env$pc_thresh |
+                                                   pct2 > Env$pc_thresh) &
+                                                   (fld > fc_thresh |
+                                                    fld < -fc_thresh)), , drop = FALSE]
         }
     }
     if (fc_thresh != Env$fc_thresh) cat("decreased fc_thresh to", log2(fc_thresh), '   ')
@@ -535,10 +579,10 @@ doWilcox <- function (current_cells, otherbranch_c, all_ref_cells, Env) {
 }    ## doWilcox
 ## -----------------------------------------------------------------------------
 # Used by ScoreNode to do the correlations using cosine
-doCosine <- function(genes, input, all_ref_cells, current_cells,
-                     otherbranch_c, ref_profiles, type) {
+doCosine <- function(genes, input, ref_cells, current_cells,
+                     otherbranch_c, ref_profiles, type, Env) {
     ## matrices with selected genes + cells
-    cells_i <- input[genes, , drop = FALSE]
+    cells_i <- SummarizedExperiment::assay(input, Env$input_c)[genes, , drop = FALSE]
     cells_t <- ref_profiles[genes, type, drop = FALSE]
 
     ## Do cosine
@@ -548,10 +592,10 @@ doCosine <- function(genes, input, all_ref_cells, current_cells,
 
     names(cor_i) <- colnames(input)
 
-    if(!is.null(all_ref_cells)) {
+    if(!is.null(ref_cells)) {
         ## same steps for type and other branch
-        cells_b <- all_ref_cells[genes , current_cells, drop = FALSE]
-        cells_ob <- all_ref_cells[genes , otherbranch_c, drop = FALSE]
+        cells_b <- ref_cells[genes , current_cells, drop = FALSE]
+        cells_ob <- ref_cells[genes , otherbranch_c, drop = FALSE]
         cor_t <-  drop(crossprod(cells_t,cells_b)/
                          sqrt(diag(crossprod(cells_b,cells_b)) * t_vs_t))
         cor_ob <- drop(crossprod(cells_t,cells_ob)/
@@ -571,21 +615,21 @@ doCosine <- function(genes, input, all_ref_cells, current_cells,
 }     ##doCosine
 ## -----------------------------------------------------------------------------
 # Used by ScoreNode to do the correlations (if Env$cor_method != cosine)
-doCorrelation <- function(ref_profiles, genes, input, all_ref_cells,
+doCorrelation <- function(ref_profiles, genes, input, ref_cells,
                           current_cells, otherbranch_c, type, Env) {
     ## as.matrix: in cases were a sparse Matrix is used
-    ## suppressWarnings: suppress warnings when the sd is 0 and cor returns NA
-    cor_i <-   suppressWarnings(cor(as.matrix(input[genes, , drop = FALSE]),
+    ## suppressWarnings: suppress warnings when the sd is 0 and cor returns a/some NA(s)
+    cor_i <-   suppressWarnings(cor(as.matrix(SummarizedExperiment::assay(input, Env$input_c)[genes, , drop = FALSE]),
                                     as.matrix(ref_profiles[genes, type, drop = FALSE]),
                                     method = Env$cor_method))
     cor_i[is.na(cor_i)] <- 0
     names(cor_i) <- colnames(input)
 
-    if(!is.null(all_ref_cells)) {
-        cor_t <- suppressWarnings(cor(as.matrix(all_ref_cells[genes , current_cells, drop = FALSE]),
+    if(!is.null(ref_cells)) {
+        cor_t <- suppressWarnings(cor(as.matrix(SummarizedExperiment::assay(ref_cells, Env$ref_c)[genes , current_cells, drop = FALSE]),
                                       as.matrix(ref_profiles[genes, type, drop = FALSE]),
                                       method = Env$cor_method))
-        cor_ob <- suppressWarnings(cor(as.matrix(all_ref_cells[genes , otherbranch_c, drop = FALSE]),
+        cor_ob <- suppressWarnings(cor(as.matrix(SummarizedExperiment::assay(ref_cells, Env$ref_c)[genes , otherbranch_c, drop = FALSE]),
                                        as.matrix(ref_profiles[genes, type, drop = FALSE]),
                                        method = Env$cor_method))
         cor_t[is.na(cor_t)] <- 0
@@ -606,78 +650,70 @@ doCorrelation <- function(ref_profiles, genes, input, all_ref_cells,
 #' NOTE: In case of bulk reference profiles: only the correlations will be used,
 #' as the data does not allow for profile or confidence scores to be calculated.
 #'
-#' @param chetah the CHETAH object
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param thresh a confidence threshold between -0 and 2. \cr
 #' Selecting 0 will classify all cells, whereas 2 will result i
 #' n (almost) no cells to be classified. \cr
 #' \emph{recommended}: between 0.1 (fairly confident) and 1 (very confident)
-#' @param return_clas Instead of returning the chetah object, only return the classification vector
+#' @param return_clas Instead of returning the SingleCellExperiment, only return the classification vector
 #' @return
 #' a charachter vector of the cell types with the names of the cells
 #' @export
-#'
 #' @examples
 #' ## Classify all cells
-#' chetah <- Classify(chetah, 0)
+#' input_mel <- Classify(input_mel, 0)
 #'
 #' ## Classify only cells with a very high confidence
-#' chetah <- Classify(chetah, 1)
+#' input_mel <- Classify(input_mel, 1)
+#'
+#' ## Back to the default
+#' input_mel <- Classify(input_mel)
 #'
 #' ## Return only the classification vector
-#' chetah <- Classify(chetah, 1, return_clas = TRUE)
-Classify <- function(chetah, thresh, return_clas = FALSE) {
+#' input_mel <- Classify(input_mel, 1, return_clas = TRUE)
+Classify <- function(input, thresh = 0.1, return_clas = FALSE) {
+    TestCHETAH(input = input)
+
+    chetah_data <- SingleCellExperiment::int_colData(input)$CHETAH
+    nodetypes <- SingleCellExperiment::int_metadata(input)$CHETAH$nodetypes
 
     ## Get parameters
-    if(!is.na(chetah$conf_scores[[1]][1])) {
-        conf <- chetah$conf_scores
-        prof <- chetah$prof_scores
+    if(!is.null(chetah_data$conf_scores)) { ### TODO check this with profile scores only
+        conf <- chetah_data$conf_scores
+        prof <- chetah_data$prof_scores
     } else {
         conf <- NULL
-        prof <- chetah$correlations
+        prof <- chetah_data$correlations
     }
-
-    nodetypes <- chetah$nodetypes
+    ## Run over the tree
     classification <- nodeDown(conf = conf, prof = prof, node = 1,
                                thresh = thresh, nodetypes = nodetypes)
     names(classification) <- rownames(prof[[1]])
-    chetah$classification <- classification
-    if (return_clas) return(classification) else return(chetah)
+    input$celltype_CHETAH <- classification
+    if (return_clas) return(classification) else return(input)
 }
 
 ## ---------------------------------
 # To make a profile_matrix from a list of reference matrices
-MeanRef <- function (input,
+MeanRef <- function (ref,
                      method = "mean",
                      scale = 10000,
                      log = FALSE,
-                     ref_types) {
+                     ref_ct,
+                     ref_c) {
 
-    if (!(method == "mean" | method == "median" | method == "var")) {
+    if (!(method == "mean" | method == "median")) {
         stop ("method must be either mean or median")
     }
-    if (is.list(input)) {
-        ## log normalize
-        if(log) {
-          ref_cells <- lapply(input, function(x) apply(x, 2, function(column) log2( (column/sum(column) * scale) +1 )))
-        } else ref_cells <- input
 
-        ## Average each cell type
-        ref_cells <- lapply( input, function (x) apply(x, 1, method) )
-        ref_means <- do.call(cbind, ref_cells)
-
-        ## Take the cell types as colnames and the genes as rownames
-        colnames(ref_means) <- names(input)
-        rownames(ref_means) <- rownames(input[[1]])
-    } else {
-        ref_means <- matrix(nrow = nrow(input))
-        for(i in unique(ref_types)) {
-          new <- apply(input[ ,ref_types == i, drop = FALSE], 1, method)
-          ref_means <- cbind(ref_means, new)
-        }
-        ref_means <- ref_means[ ,-1]
-        colnames(ref_means) <- unique(ref_types)
-        rownames(ref_means) <- rownames(input)
+    ref_means <- list()
+    for(type_sl in unique(ref[[ref_ct]])) {
+      new <- apply(SummarizedExperiment::assay(ref[ ,ref[[ref_ct]] == type_sl], ref_c), 1, method)
+      ref_means[[type_sl]] <- new
     }
+    ref_means <- do.call(cbind, ref_means)
+    colnames(ref_means) <- unique(ref[[ref_ct]])
+    rownames(ref_means) <- rownames(ref)
     ## return
     return(ref_means)
 }              ## MeanRef
@@ -685,7 +721,7 @@ MeanRef <- function (input,
 
 #' Plots the chetah classification tree with nodes numbered
 #'
-#' @param chetah a chetah object
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param col a vector of colors, with the names of the reference cell types
 #' @param col_nodes a vector of colors, ordered for node 1 till the last node
 #' @param return instead of printing, return the ggplot object
@@ -700,19 +736,20 @@ MeanRef <- function (input,
 #' @importFrom dendextend color_branches
 #' @importFrom dendextend color_labels
 #' @importFrom stats as.dendrogram
-#' @examples PlotTree(chetah = chetah)
-PlotTree <- function(chetah, col = NULL,
+#' @examples PlotTree(input = input_mel)
+PlotTree <- function(input, col = NULL,
                      col_nodes = NULL,
                      return = FALSE,
                      no_bgc = FALSE,
                      plot_limits = c(-0.4, 0.1),
                      labelsize = 6) {
-
+    TestCHETAH(input = input)
     ## Extract parameters + make dendrogram
-    lbls <- chetah$tree$labels
-    ord <- chetah$tree$order
-    chetah$tree$labels <- paste0(chetah$tree$labels, "  ")
-    hc <- as.dendrogram(chetah$tree)
+    meta_data <- input@int_metadata$CHETAH
+    lbls <- meta_data$tree$labels
+    ord <- meta_data$tree$order
+    meta_data$tree$labels <- paste0(meta_data$tree$labels, "  ")
+    hc <- as.dendrogram(meta_data$tree)
     hc <- dendextend::set(hc, 'labels_cex', labelsize/6)
 
     ## Give colors
@@ -724,13 +761,13 @@ PlotTree <- function(chetah, col = NULL,
     if(!is.null(col_nodes)) {
         col_n <- col_nodes[grepl("Node", names(col_nodes))]
         names(col_n) <- gsub("Node", "", names(col_n))
-        col_n <- col_n[order(as.numeric(names(col_n)))][seq_len(nrow(chetah$nodecoor)) - 1]
+        col_n <- col_n[order(as.numeric(names(col_n)))][seq_len(nrow(meta_data$nodecoor)) - 1]
         col_n <- c(col_nodes[grepl("Unassigned", names(col_nodes))], col_n)
         names(col_n)[1] <- 0
         col_r <- col_n
         alpha1 <- 0.2
     } else {
-        col_n <- rep("black", nrow(chetah$nodecoor))
+        col_n <- rep("black", nrow(meta_data$nodecoor))
         col_r <- "white"
         alpha1 <- 0.8
     }
@@ -746,15 +783,15 @@ PlotTree <- function(chetah, col = NULL,
     ## Plot
     ggdend <- ggplot(hc) +
       annotate(geom = "rect",
-               xmin = chetah$nodecoor[, "x"] - 0.02*length,
-               xmax = chetah$nodecoor[, "x"] + 0.02*length,
-               ymin = chetah$nodecoor[, "y"] - 0.05*maxh,
-               ymax = chetah$nodecoor[, "y"] + 0.05*maxh,
+               xmin = meta_data$nodecoor[, "x"] - 0.02*length,
+               xmax = meta_data$nodecoor[, "x"] + 0.02*length,
+               ymin = meta_data$nodecoor[, "y"] - 0.05*maxh,
+               ymax = meta_data$nodecoor[, "y"] + 0.05*maxh,
                fill = col_r, alpha = alpha1) +
       annotate(geom = "text",
-               x = chetah$nodecoor[, "x"],
-               y = chetah$nodecoor[, "y"],
-               label = c(0, seq_len(nrow(chetah$nodecoor) - 1)),
+               x = meta_data$nodecoor[, "x"],
+               y = meta_data$nodecoor[, "y"],
+               label = c(0, seq_len(nrow(meta_data$nodecoor) - 1)),
                size = labelsize, fontface = "bold",
                col = col_n) +
       ylim(plot_limits[1]*maxh, maxh+plot_limits[2]*maxh) +
@@ -769,12 +806,11 @@ PlotTree <- function(chetah, col = NULL,
 #' Plots a variable on a t-SNE
 #'
 #' @param toplot the variable that should be plotted. Either a character vector
-#' (which will become a factor) or a factor, or a (continuous) numeric.
-#' If toplot is not named with the rownames of \code{coor}, it is assumed
+#' or a factor, or a (continuous) numeric.
+#' If toplot is not named with the rownames of \code{redD}, it is assumed
 #' that the order of the two is the same.
-#' @param coor the tSNE, or other 2D vizualization coordinates.
-#' A matrix or dataframe with cells in the rows and x (e.g. tSNE_1) and
-#' y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
+#' @param redD the name of the reducedDim of the input to use for plotting
 #' @param col a vector of colors. If \code{toplot} is a numeric,
 #' this will become a continuous scale. \cr
 #' \emph{If \code{toplot} is a charachter vector, the colors should
@@ -793,22 +829,23 @@ PlotTree <- function(chetah, col = NULL,
 #' @import ggplot2
 #' @importFrom gplots colorpanel
 #' @examples
-#' tsne <- tsne_mel
-#' CD8 <- as.matrix(data_mel['CD8A', ])
-#' PlotTSNE(toplot = CD8, coor = tsne)
-PlotTSNE <- function (toplot, coor, col = NULL, return = FALSE,
+#' CD8 <- assay(input_mel)['CD8A', ]
+#' PlotTSNE(toplot = CD8, input = input_mel)
+PlotTSNE <- function (toplot, input, redD = NA, col = NULL, return = FALSE,
                       limits = NULL, pt.size = 1, shiny = NULL,
                       y_limits = NULL, x_limits = NULL, legend_label = '') {
-    ## Merge coor and toplot
-    if (is.null(names(toplot)) & is.null(dim(toplot))) names(toplot) <- rownames(coor)
+    redD <- TestCHETAH(input = input, redD = redD)
+    redD <- SingleCellExperiment::reducedDim(input, redD)
+    ## Merge redD and toplot
+    if (is.null(names(toplot)) & is.null(dim(toplot))) names(toplot) <- rownames(redD)
     toplot <- data.frame(toplot, stringsAsFactors = TRUE)
     if (!is.null(shiny) & ncol(toplot) == 2) colnames(toplot)[2] <- 'key'
     toplot$rn <- rownames(toplot)
     colnames(toplot)[1] <- "variable"
-    coor <- data.frame(coor)
-    coor$rn <- rownames(coor)
-    colnames(coor) <- c("tSNE_1", "tSNE_2", "rn")
-    data <- merge(toplot, coor, by = "rn")
+    redD <- data.frame(redD)
+    redD$rn <- rownames(redD)
+    colnames(redD) <- c("tSNE_1", "tSNE_2", "rn")
+    data <- merge(toplot, redD, by = "rn")
 
     ## Initial plot
     if (!is.null(shiny)) {
@@ -874,14 +911,14 @@ PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
 
     ## Plot basics + background
     plot <- ggplot(data, aes_string(x = 'class', y = 'score')) +
-      geom_hline(yintercept = 0, color = "gray80") +
-      theme_classic() +
-      theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 10)) +
-      labs(color = "cell types") +
-      xlab("cell types") +
-      ylab("score") +
-      ylim(low = limits[1], high = limits[2]) +
-      coord_flip()
+        geom_hline(yintercept = 0, color = "gray80") +
+        theme_classic() +
+        theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 10)) +
+        labs(color = "cell types") +
+        xlab("cell types") +
+        ylab("score") +
+        ylim(low = limits[1], high = limits[2]) +
+        coord_flip()
 
     ## background jitter (value per cell, scattered on the x-axis)
     if (!is.null(col)) plot <- plot + scale_color_manual(values = col)
@@ -904,10 +941,8 @@ PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
 #' + the corresponding classification tree,
 #' colored with the same colors
 #'
-#' @param chetah a chetah object
-#' @param coor the tSNE, or other 2D vizualization coordinates.
-#' A matrix or dataframe with cells in the rows and x (e.g. tSNE_1)
-#'  and y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
+#' @param redD the name of the reducedDim of the input to use for plotting
 #' @param interm color the intermediate instead of the final types
 #' @param tree plot the tree, along with the classification
 #' @param pt.size the point-size of the classication plot
@@ -921,19 +956,20 @@ PlotBox <- function(toplot, class, col = NULL, grad_col = NULL,
 #' @importFrom cowplot plot_grid
 #' @importFrom grDevices rainbow rgb
 #' @examples
-#' tsne <- tsne_mel
 #' ## Standard plot (final types colored)
-#' PlotCHETAH(chetah = chetah, coor = tsne)
+#' PlotCHETAH(input = input_mel)
 #'
 #' ## Intermediate types colored
-#' PlotCHETAH(chetah = chetah, coor = tsne, interm = TRUE)
+#' PlotCHETAH(input = input_mel, interm = TRUE)
 #'
 #' ## Plot only the t-SNE plot
-#' PlotCHETAH(chetah = chetah, coor = tsne, tree = FALSE)
-PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
+#' PlotCHETAH(input = input_mel, tree = FALSE)
+PlotCHETAH <- function(input, redD = NA, interm = FALSE, return = FALSE,
                        tree = TRUE, pt.size = 1, return_col = FALSE, col = NULL) {
-
+    TestCHETAH(input = input)
     ## Determine colors: if not custom, use the predefined ones. If too many cell types: rainbow.
+    meta_data <- input@int_metadata$CHETAH
+    classification <- input$celltype_CHETAH
     if(is.null(col)) {
         colors <- c ('blue', 'gold', 'cyan3', 'navy',
                      'forestgreen', 'orange', 'darkolivegreen3',
@@ -944,13 +980,13 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
                      'lightcyan', 'midnightblue', 'maroon1', 'orange3', 'palegreen',
                      'palevioletred1', 'peru', 'seagreen1', 'red3', 'snow2',
                      'steelblue1', 'turquoise')
-        leaf_nodes <- names(chetah$nodetypes[[1]])
-        int_nodes <- c("Unassigned", paste0("Node", seq_len(length(chetah$nodetypes))))
+        leaf_nodes <- names(meta_data$nodetypes[[1]])
+        int_nodes <- c("Unassigned", paste0("Node", seq_len(length(meta_data$nodetypes))))
 
         ## Add other names, in case user renamed types
-        extra_nodes <- unique(chetah$classification)[!(unique(chetah$classification) %in% names(chetah$nodetypes[[1]]))]
+        extra_nodes <- unique(classification)[!(unique(classification) %in% names(meta_data$nodetypes[[1]]))]
         extra_nodes <- extra_nodes[!(extra_nodes %in% int_nodes)]
-        if (length(extra_nodes) > 0) leaf_nodes <- c(leaf_nodes, int_nodes)
+        if (length(extra_nodes) > 0) leaf_nodes <- c(leaf_nodes, extra_nodes)
         M <- max(length(int_nodes), length(leaf_nodes))
         if (length(M) < 24)   {
             gray <- paste0('gray', rev(seq(2, 92, 4)))
@@ -961,7 +997,7 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
         }
         if (M > 36) colors <- grDevices::rainbow(M)
 
-        # color either the final, or intermediate types
+        ## color either the final, or intermediate types
         if(!interm) {
             names(colors) <- leaf_nodes
             names(gray) <- int_nodes
@@ -974,15 +1010,15 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
     } else col <- col
 
     ## Plot
-    toplot <- chetah$classification
+    toplot <- classification
     u_toplot <- unique(toplot)
     toplot <- factor(toplot, levels = c(sort(u_toplot[!grepl("Node|Unassigned", u_toplot)]),
                                         u_toplot[grepl("Unassigned", u_toplot)],
                                         sort(u_toplot[grepl("Node", u_toplot)])))
-    plot1 <- PlotTSNE(toplot = toplot, coor = coor,
+    plot1 <- PlotTSNE(toplot = toplot, input = input, redD = redD,
                       col = col, return = TRUE, pt.size = pt.size)
-    if(!interm) plot2 <- PlotTree(chetah, col, return = TRUE)
-    if(interm) plot2 <- PlotTree(chetah, col_nodes = col, no_bgc = TRUE, return = TRUE)
+    if(!interm) plot2 <- PlotTree(input, col, return = TRUE)
+    if(interm) plot2 <- PlotTree(input, col_nodes = col, no_bgc = TRUE, return = TRUE)
     if (tree) {
         plots <- cowplot::plot_grid(plot1, plot2, ncol = 2)
     } else plots <- plot1
@@ -995,9 +1031,10 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
 #'
 #' @param ref_cells the reference, similar to
 #' \code{\link{CHETAHclassifier}}'s ref_cells
-#' @param ref_types must be provided if \code{ref_cells} is one matrix
 #' @param ref_profiles similar to
 #' \code{\link{CHETAHclassifier}}'s ref_profiles
+#' @param ref_c the assay of \code{ref_cells} to use
+#' @param ref_ct the colData of \code{ref_cells} where the cell types are stored.
 #' @param return return the matrix that was used to produce the plot
 #' @param n_genes as in \code{\link{CHETAHclassifier}}
 #' @param fix_ngenes as in \code{\link{CHETAHclassifier}}
@@ -1011,21 +1048,25 @@ PlotCHETAH <- function(chetah, coor, interm = FALSE, return = FALSE,
 #'
 #' @importFrom gplots colorpanel
 #' @importFrom corrplot corrplot
+#' @importFrom SummarizedExperiment assay assays
 #' @importFrom stats cor
 #' @examples
-#' reference <- reference_hn
-#' CorrelateReference(ref_cells = reference)
-CorrelateReference <- function(ref_cells = NULL, ref_types = NULL,
-                               ref_profiles = NULL, return = FALSE, n_genes = 200,
-                               fix_ngenes = TRUE, print_steps = FALSE, only_pos = FALSE) {
-    cat('Running... this may take a couple of minutes \n')
-    stopifnot(is.list(ref_cells) | (!is.null(ref_types) &
-                                      !is.null(ref_cells)) | is.null(ref_profiles))
+#' CorrelateReference(ref_cells = headneck_ref)
+CorrelateReference <- function(ref_cells = NULL, ref_profiles = NULL, ref_ct = "celltypes",
+                               ref_c = NA, return = FALSE, n_genes = 200,
+                               fix_ngenes = TRUE, print_steps = FALSE,
+                               only_pos = FALSE) {
+    cat('Running... in case of 1000s of cells, this may take a couple of minutes \n')
+    ref_c <- TestCHETAH(input = ref_cells, input_c = ref_c,
+                        runBefore = FALSE, parameter = "ref_c",
+                        object = "ref_cells")    ## Make ref_profiles
+    if (is.null(ref_profiles)) {
+        ref_profiles <- MeanRef(ref = ref_cells, method = "mean", ref_ct = ref_ct, ref_c = ref_c)
+    } else if (class(ref_profiles) == "SingleCellExperiment") {
+        ref_profiles <- SummarizedExperiment::assay(ref_profiles, ref_c)
+    }
 
-    ## Make ref_profiles
-    if (is.null(ref_profiles)) ref_profiles <- MeanRef(ref_cells, ref_types = ref_types, method = 'mean')
-
-    ## Make empthy correlation matrix
+    ## Make empty correlation matrix
     cors <- matrix(NA, nrow = ncol(ref_profiles), ncol = ncol(ref_profiles))
     rownames(cors) <- colnames(ref_profiles)
     colnames(cors) <- colnames(ref_profiles)
@@ -1065,8 +1106,8 @@ CorrelateReference <- function(ref_cells = NULL, ref_types = NULL,
 #'
 #' @param ref_cells the reference, similar to
 #' \code{\link{CHETAHclassifier}}'s ref_cells
-#' @param ref_types must be provide if
-#' \code{ref_cells} is a matrix of dataframe
+#' @param ref_ct the colData of \code{ref_cells} where the cell types are stored.
+#' @param ref_c same as \code{input_c}, but for the reference.
 #' @param return return the matrix that was used to produce the plot
 #' @param ... Other variables to pass to
 #' \code{\link{CHETAHclassifier}}
@@ -1086,31 +1127,25 @@ CorrelateReference <- function(ref_cells = NULL, ref_types = NULL,
 #' @importFrom corrplot corrplot
 #' @importFrom graphics text
 #' @examples
-#' reference <- reference_hn
-#' ClassifyReference(ref_cells = reference)
-ClassifyReference <- function(ref_cells, ref_types = NULL, return = FALSE, ...) {
-    stopifnot(is.list(ref_cells) | !is.null(ref_types))
-
-    ## Prepare the reference
-    if(is.list(ref_cells)) {
-        ref_types <- c(rep( names(ref_cells)[1], ncol(ref_cells[[1]])),
-                       rep( names(ref_cells)[2], ncol(ref_cells[[2]])))
-        for (i in 3:length(ref_cells)) {
-            ref_types <- c(ref_types, rep(names(ref_cells)[i], ncol(ref_cells[[i]])))
-        }
-        ref_cells <- do.call(cbind, ref_cells)
-        names(ref_types) <-colnames(ref_cells)
-    }
-
+#' ClassifyReference(ref_cells = headneck_ref)
+ClassifyReference <- function(ref_cells, ref_ct = "celltypes",
+                              ref_c = "counts",
+                              return = FALSE, ...) {
     ## Classify
-    chetah <- CHETAHclassifier(input = ref_cells, ref_cells = ref_cells,
-                               ref_types = ref_types, ...)
+    input <- CHETAHclassifier(input = ref_cells,
+                               ref_cells = ref_cells,
+                               ref_ct = ref_ct,
+                               ref_c = ref_c,
+                               input_c = ref_c,
+                               ...)
 
     ## Make the correlation matrix
+    ref_types <- ref_cells[[ref_ct]]
+    names(ref_types) <- colnames(ref_cells)
     nms <- unique(ref_types)
     lngt <- length(nms)
-    type <- chetah$classification
-    splt <- unique(chetah$classification)
+    type <- input$celltype_CHETAH
+    splt <- unique(type)
     splt <- splt[grepl("Node|Unassigned", splt)]
     cors <- matrix(NA, nrow = lngt, ncol = lngt+1)
     rownames(cors) <- nms
@@ -1145,12 +1180,14 @@ ClassifyReference <- function(ref_cells, ref_types = NULL, return = FALSE, ...) 
 nodeDown <- function(conf, prof, node, thresh, nodetypes, prev_clas = NULL) {
 
     ## Do the classification of this node
-    sub_clas <- apply(prof[[node]], 1, which.max)
+    prof_df <- as.matrix(prof[[node]]) ## approximately 400x faster than on DataFrame
+    conf_df <- as.matrix(conf[[node]])
+    sub_clas <- apply(prof_df, 1, which.max)
     sub_clas  <- colnames(prof[[node]])[sub_clas]
     if (!is.null(conf)) {
         sub_score <- c()
-        for (row in seq_len(nrow(conf[[node]]))) {
-            sub_score <- c(sub_score, conf[[node]][row, sub_clas[row]])
+        for (row in seq_len(nrow(conf_df))) {
+            sub_score <- c(sub_score, conf_df[row, sub_clas[row]])
         }
         if (node == 1) {
             sub_clas[sub_score < thresh] <- "Unassigned"
@@ -1175,8 +1212,9 @@ nodeDown <- function(conf, prof, node, thresh, nodetypes, prev_clas = NULL) {
         return(sub_clas)
     }
 }
+## -------------------------------------------------------------------------
 ## select the common genes of the input and the reference
-equal.genes <- function(inp, ref) {
+EqualGenes <- function(inp, ref) {
     common <- intersect(rownames(inp), rownames(ref))
     if (length(common) == 0) {
         stop("Non of the genes names (rownames) in the reference: ",
@@ -1189,52 +1227,61 @@ equal.genes <- function(inp, ref) {
 }
 ### ---------------------------------------------------------------------------
 ## Select all the final AND intermediate types below a node
-SelectNodeTypes <- function (chetah, whichnode) {
-    nodes <- unlist(lapply(chetah$nodetypes[(whichnode):length(chetah$nodetypes)], function (x) {
-        all(names(x) %in% names(chetah$nodetypes[[whichnode ]]))
+SelectNodeTypes <- function (input, whichnode) {
+    nodet <- input@int_metadata$CHETAH$nodetypes
+    nodes <- unlist(lapply(nodet[(whichnode):length(nodet)], function (x) {
+        all(names(x) %in% names(nodet[[whichnode ]]))
     }))
-    nodes <- paste0('Node', ((whichnode - 1):(length(chetah$nodetypes) - 1))[nodes])
+    nodes <- paste0('Node', ((whichnode - 1):(length(nodet) - 1))[nodes])
     nodes[grepl("Node0", nodes)] <- "Unassigned"
-    alltypes <- c(nodes, names(chetah$nodetypes[[whichnode]]))
+    alltypes <- c(nodes, names(nodet[[whichnode]]))
     return(alltypes)
 }
 ### ---------------------------------------------------------------------------
 #' In the CHETAH classification, replace the name of a Node
 #' and all the names of the final and intermediate types under that Node.
 #'
-#' @param chetah a chetah object
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
 #' @param whichnode the number of the Node
 #' @param replacement a character vector that replaces the names under the selected Node
-#' @param nodes_exclude \emph{optional} numbers of the Nodes under the selected Node, that should \strong{NOT} be replaced
+#' @param nodes_exclude \emph{optional} the names of the types that should  \strong{NOT} be replaced
+#' @param types_exclude \emph{optional} numbers of the Nodes under the selected Node, that should \strong{NOT} be replaced
 #' @param node_only only rename the Node itself, without affecting the types under that Node
-#' @param return_clas Instead of returning the chetah object, only return the classification vector
+#' @param return_clas Instead of returning the SingleCellExperiment, only return the classification vector
 #'
 #' @return
-#' The chetah object with the new classification or if `return_clas = TRUE` the classification vector.
+#' The SingleCellExperiment with the new classification or if `return_clas = TRUE` the classification vector.
 #' @export
 #'
 #' @examples
 #' ## In the example data replace all T-cell subtypes by "T cell"
-#' chetah <- RenameBelowNode(chetah = chetah, whichnode = 7, replacement = "T cell")
-RenameBelowNode <- function(chetah, whichnode, replacement, nodes_exclude = NULL, node_only = FALSE, return_clas = FALSE) {
-    classification <- chetah$classification
+#' input_mel <- RenameBelowNode(input = input_mel, whichnode = 7, replacement = "T cell")
+RenameBelowNode <- function(input, whichnode, replacement,
+                            nodes_exclude = NULL,
+                            types_exclude = NULL,
+                            node_only = FALSE,
+                            return_clas = FALSE) {
+    classification <- input$celltype_CHETAH
     nodename <- paste0("Node", whichnode)
     nodename[grepl("Node0", nodename)] <- "Unassigned"
     whichnode <- whichnode + 1
     if (node_only) {
         classification[classification == nodename] <- replacement
     } else {
-        replace <- SelectNodeTypes(chetah = chetah, whichnode = whichnode)
+        replace <- SelectNodeTypes(input = input, whichnode = whichnode)
         if (!is.null(nodes_exclude)) {
             exclude <- vector()
             for (number in seq_len(length(nodes_exclude))) {
-                exclude <- c(exclude, SelectNodeTypes(chetah = chetah, whichnode = nodes_exclude[number]))
+                exclude <- c(exclude, SelectNodeTypes(input = input, whichnode = nodes_exclude[number]))
             }
             replace <- replace[!(replace %in% exclude)]
         }
+        if (!is.null(types_exclude)) {
+            replace <- replace[!(replace %in% types_exclude)]
+        }
         classification[classification %in% replace] <- replacement
-        chetah$classification <- classification
-        if (return_clas) return(classification) else return(chetah)
+        input$celltype_CHETAH <- classification
+        if (return_clas) return(classification) else return(input)
     }
 }
 ### -----------------
@@ -1243,13 +1290,10 @@ ch_env <- new.env(parent = emptyenv())
 ## Package environment to transfer the data for the shiny package
 #' Launch a web page to interactively go trough the classification
 #'
-#' @param chetah a chetah object
-#' @param coor the coordinates of 2D visualization,
-#' e.g. t-SNE. 2 columns for the 2 coordinates types
-#' (e.g. tSNE_1, tSNE_2). The column names have
-#' to overlap with the names of the input count data of chetah.
-#' @param counts the counts of the data that was
-#' the input to the chetah classification
+#' @param input a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run
+#' @param redD the name of the reducedDim of the input to use for plotting
+#' @param input_c the name of the assay of the input to use.
+#' \code{NA} (default) will use the first one.
 #' @importFrom plotly renderPlotly plotlyOutput ggplotly event_data
 #' @import shiny
 #' @importFrom pheatmap pheatmap
@@ -1260,11 +1304,10 @@ ch_env <- new.env(parent = emptyenv())
 #'
 #' @examples
 #' \dontrun{
-#' counts <- data_mel
-#' tsne <- tsne_mel
-#' CHETAHshiny(chetah = chetah, coor = tsne, counts = counts)
+#' CHETAHshiny(input = input_mel)
 #' }
-CHETAHshiny <- function (chetah, coor, counts) {
+CHETAHshiny <- function (input, redD = NA, input_c = NA) {
+
     ## Search for the shinyApp in the package directory
     saved.stringsAsFactors <- options()$stringsAsFactors
     options(stringsAsFactors = TRUE)
@@ -1273,10 +1316,60 @@ CHETAHshiny <- function (chetah, coor, counts) {
         stop("Could not find example directory. Try re-installing `chetah`.", call. = FALSE)
     }
     ## Put data in package_environment
-    ch_env$chetah <- chetah
-    ch_env$coor <- coor
-    ch_env$counts <- counts
-    rm(chetah, coor, counts)
+    input_c <- TestCHETAH(input = input, input_c = input_c)
+    redD <- TestCHETAH(input = input, redD = redD)
+    ch_env$redD <- redD
+    ch_env$input_c <- input_c
+    ch_env$chetah <- input
+    rm(input)
     shiny::runApp(appDir, display.mode = "normal")
     options(stringsAsFactors=saved.stringsAsFactors)
+}
+
+### ---------------------------------------------------------------------------
+TestCHETAH <- function (input, redD = NULL, input_c = NULL, runBefore = TRUE, parameter = NULL, object = "input") {
+
+    ## is chetah run?
+    if (runBefore) {
+      if (is.null(input@int_metadata$CHETAH)) stop('Please run CHETAHclassifier on the SingleCellExperiment object before calling this funtion')
+    }
+    ## Select the correct reducedDim/assay
+    if (!is.null(redD)) {
+        if (is.null(parameter)) parameter <- "redD"
+        selected <- TestInput(input = input, assessor = SingleCellExperiment::reducedDims,
+                              name = "reducedDims", parameter = parameter, selected = redD, object = object)
+        if (!setequal(rownames(SingleCellExperiment::reducedDim(input, selected)), colnames(input))) {
+            stop("Please provide a data.frame in ReducedDims that has the same rownames as the colnames of the assays", call. = FALSE)
+        }
+
+        return(selected)
+    } else if (!is.null(input_c)) {
+        if (is.null(parameter)) parameter <- "input_c"
+        selected <- TestInput(input = input, assessor = SummarizedExperiment::assays,
+                              name = "assays", parameter = parameter, selected = input_c, object = object)
+        return(selected)
+    }
+}
+### ---------------------------------------------------------------------------
+TestInput <- function (input, assessor, name, parameter, selected, object) {
+
+    ## Test if assessor(object) is named
+    if (!is.null(names(assessor(input))) & !("" %in% names(assessor(input))[1])) {
+        if (length(assessor(input)) == 0) {
+            stop(paste("No", name, "in the SingleCellExperiment object.",
+                 "Please refer to the CHETAH vignette on how to prepare your data: browseVignettes('CHETAH')"))
+        }
+        if (is.na(selected)) {
+            selected <- names(assessor(input))[1]
+        } else {
+            if (!(selected %in% names(assessor(input)))) {
+                stop(paste0("The specified ", parameter ," is not available. ",
+                     "Please choose one of 'names(", name, "(", object, "))': ",
+                     paste(names(assessor(input)), collapse = " ")), call. = FALSE)
+            }
+        }
+        return(selected)
+    } else {
+        stop(paste0("Please name your: '", name, "(", object, "))'. This is essential for the method"))
+    }
 }

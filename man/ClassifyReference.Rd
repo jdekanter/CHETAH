@@ -6,14 +6,16 @@
 A good reference should have almost no mixture
 between reference cells.}
 \usage{
-ClassifyReference(ref_cells, ref_types = NULL, return = FALSE, ...)
+ClassifyReference(ref_cells, ref_ct = "celltypes", ref_c = "counts",
+  return = FALSE, ...)
 }
 \arguments{
 \item{ref_cells}{the reference, similar to
 \code{\link{CHETAHclassifier}}'s ref_cells}
 
-\item{ref_types}{must be provide if
-\code{ref_cells} is a matrix of dataframe}
+\item{ref_ct}{the colData of \code{ref_cells} where the cell types are stored.}
+
+\item{ref_c}{same as \code{input_c}, but for the reference.}
 
 \item{return}{return the matrix that was used to produce the plot}
 
@@ -37,6 +39,5 @@ A good reference should have almost no mixture
 between reference cells.
 }
 \examples{
-reference <- reference_hn
-ClassifyReference(ref_cells = reference)
+ClassifyReference(ref_cells = headneck_ref)
 }

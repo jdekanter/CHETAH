@@ -33,15 +33,57 @@ h1, .h1 {margin-top: 60px; color: #fcb42c;}
 h2, .h2 {margin-top: 30px;}
 a {color: #ff7f00;}
 div.blue { background-color: #fffaf2; border-radius: 5px; padding: 5px;}
-</style>
-   
-# Introduction
-## Installation
-__CHETAH is a package for cell type identification of single-cell RNA-sequencing (scRNA-seq) data.__   
-Cell types are assigned by correlating the input data to a reference in a hierarchical manner. CHETAH is built to work with scRNA-seq references, but will also work with RNA-seq or micro-array reference datasets. 
+.main-container {
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+  </style>
 
+# Introduction
+__CHETAH is a package for cell type identification of single-cell RNA-sequencing (scRNA-seq) data.__   
+A pre-print of the article describing CHETAH is available at [bioRxiv](https://www.biorxiv.org/content/10.1101/558908v1).  
+
+Summary: Cell types are assigned by correlating the input data to a reference in a hierarchical manner. CHETAH is built to work with scRNA-seq references, but will also work (with limited capabilities) with RNA-seq or micro-array reference datasets. 
+So, to run CHETAH, you will only need: 
+
+  * your input data
+  * a reference dataset, annotated with cell types
+    + Both as a `SingleCellExperiment`
+
+## At a glance
+To run chetah on an input count matrix `input_counts` with t-SNE^1^ coordinates in `input_tsne`, and a reference count matrix `ref_counts` with celltypes vector `ref_ct`, run:  
+
+```{r glance, echo=TRUE, eval=FALSE}
+## Make SingleCellExperiments
+reference <- SingleCellExperiment(assays = list(counts = ref_counts),
+                                     colData = DataFrame(celltypes = ref_ct))
+
+input <- SingleCellExperiment(assays = list(counts = input_counts),
+                              reducedDims = SimpleList(TSNE = input_tsne))
+
+## Run CHETAH
+input <- CHETAHclassifier(input = input, ref_cells = reference)
+
+## Plot the classification
+PlotCHETAH(input)
+
+## Extract celltypes:
+celltypes <- input$celltype_CHETAH
+```
+  
+__A comprehensive immune reference dataset for tumor data can be downloaded:__ [here](https://figshare.com/s/aaf026376912366f81b6). This reference can be used for all (tumor) input datasets.
+
+# Some background
+CHETAH constructs a classification tree by hierarchically clustering the reference data. The classification is guided by this tree. In each node of the tree, cells are either assigned to the right, or the left branch. A confidence score is calculated for each of these assignments. When the confidence score for an assignment is lower than the threshold (default = 0.1), the classification for that cells stops in that node.    
+This results in two types of classifications:
+  
+ * __final types__: Cells that are classified to one of the leaf nodes of the tree (i.e. a cell type of the reference).
+ * __intermediate types__: Cells that had a confidence score lower than the threshold in a certain node are assigned to that intermediate node of the tree. This happens when a cell has approximately the same similarity to the right and the left branch of that node.
+<div class = "blue"> CHETAH generates generic names for the intermediate types: "Unassigned" for cells that are classified to the very first node, and "Node1", "Node2", etc for the additional nodes </div>
+
+# Installation
 CHETAH is submitted to Bioconductor, and will soon be available by:
-```{r echo=TRUE, eval=FALSE}
+```{r bioconductor_inst, echo=TRUE, eval=FALSE}
 ## Install BiocManager is neccesary
 if (!require("BiocManager")) {
     install.packages("BiocManager")
@@ -56,7 +98,7 @@ library(CHETAH)
 The development version can be downloaded from github.
 Note that install_github does not always install all dependencies, 
 so please check if all dependencies are available for you.
-```{r echo=TRUE, eval=FALSE}
+```{r github _inst, echo=TRUE, eval=FALSE}
 if (!require("devtools")) {
     install.packages("devtools")
 }
@@ -64,7 +106,8 @@ devtools::install_github("jdekanter/CHETAH")
 
 ## Check if all dependencies are installed
 dep <- c('bioDist', 'ggplot2', 'gplots', 'cowplot', 
-         'dendextend', 'corrplot', 'reshape2', 'plotly', 'grDevices')
+         'dendextend', 'corrplot', 'reshape2', 'plotly', 'grDevices', 
+         'SingleCellExperiment')
 pkg_avail <- suppressMessages(sapply(dep, function (pkg) pkg %in% installed.packages()[, "Package"]))
 
 # --- Install dependencies, if neccesary
@@ -74,180 +117,163 @@ if(length(dep[!pkg_avail]) > 0) {
   }
   BiocManager::install(dep[!pkg_avail])
 }
-# Load the package
+
+# Load the CHETAH
 library(CHETAH)
 ```
 
-## Tumor reference Download
-  
-__A comprehensive reference dataset for tumor data can be downloaded:__ [here](https://figshare.com/s/aaf026376912366f81b6). This reference can be used for all (tumor) input datasets.
 
-## Short introduction
-CHETAH constructs a classification tree by hierarchically clustering the reference data. The classification is guided by this tree. In each node of the tree, cells are either assigned to the right, or the left branch. A confidence score is calculated for each of these assignments. When the confidence score for an assignment is lower than the threshold (default = 0.1), the classification for that cells stops in that node.    
-This results in two types of classifications:
+# Preparing your data
+## Required data
+If you don't have your data stored as `SingleCellExperiments`, continue to [the next step](#sce).
+Otherwise, you need the following data before you begin:
+
+  * input scRNA-seq count data of the cells to be classified
+    + a data.frame or matrix, with cells in the columns and genes in the rows
+  * (!) normalized scRNA-seq count data of reference cells
+    + in similar format as the input
+  * the cell types of the reference cells
+    + a named character vector (names corresponding to the colnames of the reference counts)
+  * (optional) a 2D reduced dimensional representation of your input data for visualization:
+  e.g. t-SNE^1^, PCA.
+    + a two-column matrix/data.frame, with the cells in the rows and the two dimensions in the columns
+
+As an example on how to prepare your data, we will use melanoma input data from [Tirosh et al.](10.1126/science.aad0501) 
+and head-neck tumor reference data from [Puram et al.](10.1016/j.cell.2017.10.044) as an example.
+
+<div class = "blue"> For information on how to create your own reference see [Creating a Reference](#ref-prep) </div>
+<br>    
+```{r prepare_examp, echo=TRUE, eval=TRUE}
+## To prepare the data from the package's internal data, run:
+celltypes_hn <- headneck_ref$celltypes
+counts_hn <- assay(headneck_ref, "counts")
+counts_melanoma <- assay(input_mel, "counts")
+tsne_melanoma <- reducedDim(input_mel, "TSNE")
+
+## The input data: a Matrix
+class(counts_melanoma)
+counts_melanoma[1:5, 1:5]
+
+## The reduced dimensions of the input cells: 2 columns
+tsne_melanoma[1:5, ]
+all.equal(rownames(tsne_melanoma), colnames(counts_melanoma))
+
+## The reference data: a Matrix
+class(counts_hn)
+counts_hn[1:5, 1:5]
+
+## The cell types of the reference: a named character vector
+str(celltypes_hn)
+    
+## The names of the cell types correspond with the colnames of the reference counts:
+all.equal(names(celltypes_hn), colnames(counts_melanoma)) 
+```
+
+## `SingleCellExperiments` {#sce}
+CHETAH expects data to be in the format of a `SingleCellExperiment`,
+which is an easy way to store different kinds of data together.
+Comprehensive information on this data type can be found [here](https://bioconductor.org/packages/release/bioc/html/SingleCellExperiment.html).
+
+A `SingleCellExperiment` holds three things:
+
+  * counts: `assays`
+    - as a `list` of `Matrices`
+  * meta-data: `colData`
+    - as `DataFrames`
+  * reduced dimensions (e.g. t-SNE, PCA): `ReducedDims`
+    - as a `SimpleList` of 2-column `data.frames` of `matrices`
+
+CHETAH needs 
+
+  * a reference `SingleCellExperiment` with:
+    + an assay
+    + a colData column with the corresponding cell types (default "celltypes")
+  * an input `SingleCellExperiment` with:
+    + an assay
+    + a reducedDim (e.g. t-SNE)
+
+For the example data, we would make the two objects by running:  
   
- * __Final types__: Cells that are classified to one of the leaf nodes of the tree (i.e. a cell type of the reference).
- * __Intermediate types__: Cells that had a confidence score lower than the threshold in a certain node are assigned to that intermediate node of the tree. This happens when a cell has approximately the same similarity to the right and the left branch of that node.
-<div class = "blue"> CHETAH generates generic names for the intermediate types: "Unassigned" for cells that are classified to the very first node, and "Node1", "Node2", etc for the additional nodes </div>
+```{r make_sce, echo=TRUE, eval=TRUE}
+## For the reference we define a "counts" assay and "celltypes" metadata
+headneck_ref <- SingleCellExperiment(assays = list(counts = counts_hn),
+                                     colData = DataFrame(celltypes = celltypes_hn))
+
+## For the input we define a "counts" assay and "TSNE" reduced dimensions
+input_mel <- SingleCellExperiment(assays = list(counts = counts_melanoma),
+                                  reducedDims = SimpleList(TSNE = tsne_melanoma))
+```
+
+<div class = "blue"> Note: CHETAH functions default to the first `assay`/`reducedDim` in an object and "celltypes" for the reference's `colData`. See ?CHETAHclassifier and ?PlotCHETAH on how to change this behaviour. </div>
 
 # Running CHETAH
-## The function
-Running CHETAH requires only one function: `CHETAHclassifier`.  
+Now that the data is prepared, running chetah is easy:
 
-## Input variables
-CHETAH needs two inputs: __reference__ and __input__ expression matrices.  
+```{r run_chetah, echo=TRUE, eval=TRUE}
+input_mel <- CHETAHclassifier(input = input_mel,
+                              ref_cells = headneck_ref)
+```
 
-<div class = "blue"> An expression matrix is a `matrix`, `Matrix` or `data.frame` with samples/cells in the columns and genes in the rows. </div>
-<br>
-<div class = "blue"> All parameter names of `CHETAHclassifier` are displayed as `code`. </div>
-<br>
-<div class = "blue"> The same gene id type (e.g. gene symbols, ensemble ids, etc) must be used in the input and reference. </div>
-<br>
-```{r echo=FALSE}
-ref_oneMatrix <- as.matrix(do.call(cbind, reference_hn))
-ref_types <- vector()
-for(i in names(reference_hn)) ref_types <- c(ref_types, rep(i, ncol(reference_hn[[i]])))
-names(ref_types) <- colnames(ref_oneMatrix)
-ref_listOfMatrices <- lapply(reference_hn, as.matrix)
-ref_bulkProfiles <- CHETAH:::MeanRef(reference_hn)
-```
-  
-1.  `input`  
-    + An expression matrix of the input cells  
-2.  A reference, one of:
-    i) An expression matrix of reference cells (`ref_cells`) and a named character vector (`ref_types`) of the cell types of `ref_cells`. The names of `ref_types` must correspond with the column names of `ref_cells`.  
-    ```{r} 
-    str(ref_oneMatrix) ## ref_cells
-    str(ref_types) ## ref_types
-    all.equal(names(ref_types), colnames(ref_oneMatrix))
-    ```
-    ii) A list of scRNA-seq expression matrices (`ref_cells`). Each object must hold a matrix of cells of one cell type and must be named with that cell type, e.g: a list of 3 objects named "B", "NK" and "T", holding an expression matrix of exclusively B, NK, and T cells respectively.  
-    ```{r} 
-    ls.str(ref_listOfMatrices) ## ref_cells
-    ```
-    iii) In the case of bulk RNA-seq or micro-array reference data (when only one expression profile per cell type is available) an expression matrix must be provided in `ref_profiles` with the cell types as the column names. Note that CHETAH
-    runs in this cases without profile and confidence scores and without intermediate types, as a scRNA-seq reference is needed to calculate these, 
-    ```{r}
-    str(ref_bulkProfiles) ## ref_profiles
-    ```
-  
-To transform reference data in fromat i (as obtained from e.g. a Seurat^3^ object) to format ii, so only óne reference object is needed, run:
-```{r} 
-ref_listOfMatrices <- lapply(unique(ref_types), function (x) ref_oneMatrix[ ,names(ref_types)[ref_types == x]])
-names(ref_listOfMatrices) <- unique(ref_types)
-```
+## The output
+CHETAH returns the input object, but added:
+
+  * input$celltype_CHETAH
+    + a named character vector that can directly be used in any other workflow/method.
+  * "hidden" `int_colData` and `int_metadata`, not meant for direct interaction, but
+    + which can all be viewed and interacted with using: `PlotCHETAH` and `CHETAHshiny`
     
-### Example data
-In this vignette, the following example data from the CHETAH package are used:
- <div class = "blue"> More information and complete references for each object can be found in it's help page, e.g. `?reference_hn`  </div>
- <br>
- 
- * `reference_hn`: A list of expression matrices derived from data from Puram et al. (2017) Cancer Cell.  
-    ```{r}
-    ls.str(reference_hn)
-    ```
- * `data_mel`: An expression matrix of data from two tumors from Tirosh et al. (2016) Science.  
-    ```{r}
-    str(data_mel)
-    ```
- * `tsne_mel`: The coordinates resulting from running t-SNE^1^ on `data_mel`  
-    ```{r}
-    str(tsne_mel)
-    ``` 
-
-## The reference
-### Normalization
-CHETAH does not require normalized input data, but __the reference data has to be normalized beforehand__. The reference data that is used in this vignette is already normalized. However, for sake of the example, let's say it is not normalized, then normalization could be performed as follows: 
-
-```{r}
-reference <- reference_hn
-reference <- lapply(reference, function(matrix) apply(matrix, 2, function(column) log2((column/sum(column) * 100000) + 1)))
-```
-### Important characteristics of a reference
-CHETAH can use any scRNA-seq reference, but the reference greatly influences the classification.  
-The following general rules apply on choosing and creating a reference:
-
- * Better results can be achieved by using a reference and an input dataset that are from the same biological type, or at least consist of cells that are in the same cell state. E.g. for an input dataset of PBMCs, a bone marrow reference dataset could be used, but as these cells are more naive or precursors, this might negatively influence the classification. In this case, another PBMC dataset would work optimally.
- * The annotation of the reference directly influences the classification. The more accurate the cell type labels, the better the classification.
- * CHETAH works better with less sparse reference data. 
- * The sparser the reference data, the more reference cells are needed to create a reliable, robust reference profile. For high coverage Smart-Seq2^2^ data, as little as 20-30 cells are needed per cell type. For sparser 10X Genomics data, 100+ cells normally gives optimal results.
-  
-  
-## Calling the function
-On the example data, CHETAH is run as follows:
-```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-reference <- reference_hn
-input <- data_mel
-chetah <- CHETAHclassifier(input = input, ref_cells = reference, plot.tree = TRUE)
-```
-
-## Output
-The output of CHETAH is a list. See `?CHETAHclassifier` for more information.  
-The most important object in this list is `chetah$classification`. This is a named character of the classification. This vector can be used for further analysis. For example, it can be directly integrated into a Seurat^3^ object as metadata.  
-  
-# Visualize outcome
 
 ## Standard plots
-CHETAH comes with different functions to visualize it's output, but the most important one is `PlotCHETAH`.
-This function plots both the classification tree and the t-SNE (or similar coordinates) map.  
+CHETAH's classification can be visualized using: `PlotCHETAH`.
+This function plots both the classification tree and the t-SNE (or other provided reduced dimension) map.  
 Either the  __final types__ or the __intermediate types__ are colored in these plots. The non-colored types are represented in a grayscale.
-<br>
-
-<div class = "blue"> Provide your own coordinates for the cells, e.g. from t-SNE, in the `coor` variable.
-`coor` must be a `matrix` or `data.frame` of coordinates with the two dimensions in the columns and the cells in the rows. </div> 
-
+  
 To plot the __final types__:
+
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-tsne <- tsne_mel
-str(tsne)
-PlotCHETAH(chetah = chetah, coor = tsne)
+PlotCHETAH(input = input_mel)
 ```
-<div class = "blue"> Please note that each type "NodeX" corresponds to the node with number X and that the type "Unassigned" corresponds to the node with number 0  </div>
+  
+<div class = "blue"> Please note that each type "NodeX" corresponds to the node with number X and that the type "Unassigned" corresponds to the node 0  </div>
 <br>
   
 Conversely, to plot the __intermediate types__:
+
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-PlotCHETAH(chetah = chetah, coor = tsne, interm = TRUE)
+PlotCHETAH(input = input_mel, interm = TRUE)
 ```
 
-If you would like to use the classification, and thus the colors, in another package (e.g. Seurat), you can extract the colors using:
-```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-colors <- PlotCHETAH(chetah = chetah, coor = tsne, return_col = TRUE)
-str(colors)
+If you would like to use the classification, and thus the colors, in another package (e.g. Seurat^2^), you can extract the colors using:
+
+```{r eval=FALSE}
+colors <- PlotCHETAH(input = input_mel, return_col = TRUE)
 ```
 
 ## `CHETAHshiny`
-The classification of CHETAH and other outputs like profile and confidence scores can be manually
-assessed in R, but CHETAH also comes with an shiny application that allows for 
-easy and interactive visual analysis of the classification.
+The classification of CHETAH and other outputs like profile and confidence scores can be 
+visualized in a shiny application that allows for 
+easy and interactive analysis of the classification.
 
-The shiny implementation needs three inputs:
+Here you can view:
 
- * A chetah object (/list) 
- * The 2D coordinates (e.g. from t-SNE) of the input cells
- * The count matrix of the original data (used for the `input` variable in `CHETAHclassifier`  
-  
-<div class = "blue"> When the data is large (more than 2000 cells), it is advised to use a sparse Matrix for the count data </div>  
+  * the confidence of all assignments
+  * the classification in an interactive window
+  * the genes used by CHETAH, an it's expression in the input data
+  * a lot more
 
-To run CHETAH on the example data:  
+The following command will open the shiny application as in an R window. The page can also be opened in your default web-browser by clicking "Open in Browser" at the very top.
 
-<div class = "blue"> The following command will open the shiny application as a web page in your default web browser</div>  
 ```{r eval = FALSE}
-CHETAHshiny(chetah = chetah, coor = tsne, counts = input)
+CHETAHshiny(input = input_mel)
 ```
   
-<div class = "blue"> See the help page tab in the application for an explanation of each plot </div>  
-
-<br>    
-    
-# Additional functionality
-
-## Changing classification
+# Changing classification
+## Confidence score
 CHETAH calculates a confidence score for each assignment of an input cell to one of the branches of a node.  
 The confidence score:  
 
- * can have a value between 0 and 2
- * will most frequently lie between 0 and 1
+ * has a value between 0 and 2
+ * will normally lie between 0 and 1
  * 0 represents no confidence for an assignment, 1 high confidence.  
  
 __The default confidence threshold of CHETAH is 0.1.__   
@@ -258,19 +284,72 @@ __The confidence threshold can be adjusted in order to classify more or fewer ce
  * Using a confidence threshold of 0 will classify all input cells to a final type. Be aware that this classification can be noisy and can contain incorrect classifications.  
  * Using a threshold of 0.2, 0.3, 0.4, etc, will classify a decreasing number of cells to a final type, with the remaining cells having a increasingly high confidence throughout all nodes in the tree.  
   
-For example, to classify all cells:
+
+For example, to only classify cells with very high confidence:
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-chetah <- Classify(chetah, 0)
-PlotCHETAH(chetah = chetah, coor = tsne)
+input_mel <- Classify(input = input_mel, 0.8)
+PlotCHETAH(input = input_mel)
 ```
 
-Conversely, to only classify cells with very high confidence:
+Conversely, to classify all cells:
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-chetah <- Classify(chetah, 0.8)
-PlotCHETAH(chetah = chetah, coor = tsne)
+input_mel <- Classify(input_mel, 0)
+PlotCHETAH(input = input_mel, tree = FALSE)
 ```
   
-## Reference quality control
+## Renaming types
+For renaming types in the tree, CHETAH comes with the `RenameBelowNode` function.
+This can be interesting when you are more interested in the general types, type in the different __intermediate__ and __final types__. 
+
+For the example data, let's say that we are not interested in all the different subtypes of T-cells (under Node6 and Node7), 
+we can name all these cells "T cells" by running:
+
+```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
+input_mel <- RenameBelowNode(input_mel, whichnode = 6, replacement = "T cell")
+PlotCHETAH(input = input_mel, tree = FALSE)
+```
+
+To reset the classification to its default, just run `Classify` again:
+
+```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
+input_mel <- Classify(input_mel) ## the same as Classify(input_mel, 0.1)
+PlotCHETAH(input = input_mel)
+```
+
+# Optimizing the classification
+CHETAH is optimized to give good results in most analyses, but it can happen that a classification is imperfect.
+When CHETAH does not give the desired output (too little cells are classified, visually random classification, etc),  
+These are the following steps to take (in this order): 
+
+  * If too little cells are classified, lower the Confidence threshold to 0.05 or 0.01
+    + Beware of false positives! Always check if the result makes sense.
+  * Check if your reference is of high quality (see [below](#ref-prep). This is the most important step!
+  * If your data is very sparse (e.g. droplet-based), try removing the ribosomal genes before running.
+  These can sometimes dominate the gene selection.
+    + using `input[!(grepl("^RP", rownames(input))), ]` is an imperfect, but very quick way to do this.
+  * Try using a different number of genes for the classification (the `n_genes` parameter).
+    + this defaults to 200, but sometimes 100 or (in sparse data) 500 can give better results
+  * Find another reference
+  * Try one of the other scRNA-seq classification methods available.
+
+# Creating a reference {#ref-prep}
+## Normalization
+CHETAH does not require normalized input data, but __the reference data has to be normalized beforehand__. The reference data that is used in this vignette is already normalized. However, for sake of the example, let's say it is not normalized. Then, normalization could be performed as follows: 
+
+```{r}
+counts_hn <- apply(counts_hn, 2, function(column) log2((column/sum(column) * 100000) + 1))
+```
+
+### Important characteristics of a reference
+CHETAH can use any scRNA-seq reference, but the used reference greatly influences the classification.  
+The following general rules apply on choosing and creating a reference:
+
+ * Better results can be achieved by using a reference and an input dataset that are from the same biological type, or at least consist of cells that are in the same cell state. E.g. for an input dataset of PBMCs, a bone marrow reference dataset could be used, but as these cells are more naive or precursor cells, this might negatively influence the classification. In this case, another PBMC dataset would work optimally.
+ * The annotation of the reference directly influences the classification. The more accurate the cell type labels, the better the classification.
+ * CHETAH works better with less sparse reference data. 
+ * The sparser the reference data, the more reference cells are needed to create a reliable, robust reference profile. For high coverage Smart-Seq2^3^ data, as little as 20-30 cells are needed per cell type. For sparser 10X Genomics data, 100+ cells normally gives optimal results.
+
+## Reference QC
 The performance of CHETAH is heavily dependent on the quality of the reference.  
 The quality of the reference is affected by: 
 
@@ -290,10 +369,10 @@ genes with the highest fold-change between the two and uses these to correlate t
 If the reference is good, all types will correlate poorly or even better, will anti-correlate.
   
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12}
-CorrelateReference(ref_cells = reference)
+CorrelateReference(ref_cells = headneck_ref)
 ```
 
-In this case, most cell types will be distinguishable: many types don't correlate, or anti-correlate. However, some types are quire similar. Regulatory and CD4 T cells, or CD4 and CD8 T cells, might be hard to distinguish in the input data.
+In this case, most cell types will be distinguishable: many types don't correlate, or anti-correlate. However, some types are quite similar. Regulatory and CD4 T cells, or CD4 and CD8 T cells, might be hard to distinguish in the input data.
   
 ### ClassifyReference
 Another check to see whether CHETAH can distinguish between the cell types in the reference is
@@ -302,13 +381,18 @@ If CHETAH works well with the reference, there should be almost no mix-ups in th
 all cells of type A should be classified to type A.
   
 ```{r out.width="100%", dpi = 100, fig.height = 6, fig.width = 12, fig.cap = "In this plot, the rows are the original cell type labels, the columns the labels that were assigned during classification. The colors and sizes of the squares indicate which part of the cells of the row name type are classified to the column type. E.g. 4th row, 2th column shows that 5-10% of CD4 T cells are classified as regulatory T cells."}
-ClassifyReference(ref_cells = reference)
+ClassifyReference(ref_cells = headneck_ref)
 ```
 
 In this reference, there is never more than 10% mix-up between two cell types. In addition, a low percentage of cells is classified as an intermediate type. Most mix-ups occur between
 subtypes of T cells. In this case the user should be aware that these cell type labels have the highest chance to interchange.
 
 <br><br>
-^1^ Van Der Maaten and Hinton (2008). Visualizing high-dimensional data using t-sne. _J Mach Learn Res_. 9: 2579-2605. doi: 10.1007/s10479-011-0841-3.
-^2^ Picelli et al. (2013) Smart-seq2 for sensitive full-length transcriptome profiling in single cells. _Nat Methods_. 10(11): 1096-1100. doi: 10.1038/nmeth.2639.
-^3^ Satija et al. (2015) Spatial reconstruction of single-cell gene expression data. _Nat Biotechnol_. 33(5):495-502. May 2015. doi: 10.1038/nbt.3192. More information at: https://satijalab.org/seurat/ 
+^1^ Van Der Maaten and Hinton (2008). Visualizing high-dimensional data using t-sne. _J Mach Learn Res_. 9: 2579-2605. doi: 10.1007/s10479-011-0841-3.  
+^2^ Satija et al. (2015) Spatial reconstruction of single-cell gene expression data. _Nat Biotechnol_. 33(5):495-502. May 2015. doi: 10.1038/nbt.3192. More information at: https://satijalab.org/seurat/   
+^3^ Picelli et al. (2013) Smart-seq2 for sensitive full-length transcriptome profiling in single cells. _Nat Methods_. 10(11): 1096-1100. doi: 10.1038/nmeth.2639.  
+
+```{r}
+sessionInfo()
+```
+

@@ -4,18 +4,15 @@
 \alias{CHETAHshiny}
 \title{Launch a web page to interactively go trough the classification}
 \usage{
-CHETAHshiny(chetah, coor, counts)
+CHETAHshiny(input, redD = NA, input_c = NA)
 }
 \arguments{
-\item{chetah}{a chetah object}
+\item{input}{a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run}
 
-\item{coor}{the coordinates of 2D visualization,
-e.g. t-SNE. 2 columns for the 2 coordinates types
-(e.g. tSNE_1, tSNE_2). The column names have
-to overlap with the names of the input count data of chetah.}
+\item{redD}{the name of the reducedDim of the input to use for plotting}
 
-\item{counts}{the counts of the data that was
-the input to the chetah classification}
+\item{input_c}{the name of the assay of the input to use.
+\code{NA} (default) will use the first one.}
 }
 \value{
 Opens a web page in your default browser
@@ -25,8 +22,6 @@ Launch a web page to interactively go trough the classification
 }
 \examples{
 \dontrun{
-counts <- data_mel
-tsne <- tsne_mel
-CHETAHshiny(chetah = chetah, coor = tsne, counts = counts)
+CHETAHshiny(input = input_mel)
 }
 }

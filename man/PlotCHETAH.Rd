@@ -6,15 +6,13 @@
 + the corresponding classification tree,
 colored with the same colors}
 \usage{
-PlotCHETAH(chetah, coor, interm = FALSE, return = FALSE, tree = TRUE,
-  pt.size = 1, return_col = FALSE, col = NULL)
+PlotCHETAH(input, redD = NA, interm = FALSE, return = FALSE,
+  tree = TRUE, pt.size = 1, return_col = FALSE, col = NULL)
 }
 \arguments{
-\item{chetah}{a chetah object}
+\item{input}{a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run}
 
-\item{coor}{the tSNE, or other 2D vizualization coordinates.
-A matrix or dataframe with cells in the rows and x (e.g. tSNE_1)
- and y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively}
+\item{redD}{the name of the reducedDim of the input to use for plotting}
 
 \item{interm}{color the intermediate instead of the final types}
 
@@ -39,13 +37,12 @@ Plot the CHETAH classification on 2D visulization like t-SNE
 colored with the same colors
 }
 \examples{
-tsne <- tsne_mel
 ## Standard plot (final types colored)
-PlotCHETAH(chetah = chetah, coor = tsne)
+PlotCHETAH(input = input_mel)
 
 ## Intermediate types colored
-PlotCHETAH(chetah = chetah, coor = tsne, interm = TRUE)
+PlotCHETAH(input = input_mel, interm = TRUE)
 
 ## Plot only the t-SNE plot
-PlotCHETAH(chetah = chetah, coor = tsne, tree = FALSE)
+PlotCHETAH(input = input_mel, tree = FALSE)
 }

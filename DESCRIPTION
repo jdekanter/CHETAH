@@ -1,8 +1,8 @@
 Package: CHETAH
 Title: Fast and accurate scRNA-seq cell type identification
 Type: Package
-Version: 0.99.0
-Date: 28-02-2019
+Version: 0.99.1
+Date: 10-03-2019
 Authors@R: c(person("Jurrian", "de Kanter", email = "jurriandekanter@gmail.com",  role = c("aut", "cre")),
              person("Philip", "Lijnzaad", email = "p.lijnzaad@prinsesmaximacentrum.nl", role = c("aut")))
 Description: CHETAH is a accurate, selective and fast scRNA-seq classifier. 
@@ -23,10 +23,13 @@ Imports:
   	grDevices,
   	stats,
   	graphics,
-  	reshape2
+  	reshape2,
+  	S4Vectors,
+  	SummarizedExperiment
 Depends:
-    R (>= 3.5),
-	  ggplot2
+    R (>= 3.6),
+	  ggplot2,
+  	SingleCellExperiment
 License: file LICENSE
 Encoding: UTF-8
 biocViews: 

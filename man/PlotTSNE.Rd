@@ -4,19 +4,19 @@
 \alias{PlotTSNE}
 \title{Plots a variable on a t-SNE}
 \usage{
-PlotTSNE(toplot, coor, col = NULL, return = FALSE, limits = NULL,
-  pt.size = 1, shiny = NULL, y_limits = NULL, x_limits = NULL,
-  legend_label = "")
+PlotTSNE(toplot, input, redD = NA, col = NULL, return = FALSE,
+  limits = NULL, pt.size = 1, shiny = NULL, y_limits = NULL,
+  x_limits = NULL, legend_label = "")
 }
 \arguments{
 \item{toplot}{the variable that should be plotted. Either a character vector
-(which will become a factor) or a factor, or a (continuous) numeric.
-If toplot is not named with the rownames of \code{coor}, it is assumed
+or a factor, or a (continuous) numeric.
+If toplot is not named with the rownames of \code{redD}, it is assumed
 that the order of the two is the same.}
 
-\item{coor}{the tSNE, or other 2D vizualization coordinates.
-A matrix or dataframe with cells in the rows and x (e.g. tSNE_1) and
-y (e.g. tSNE_2) coordinates in the 1st and 2nd column respectively}
+\item{input}{a SingleCellExperiment on which \code{\link{CHETAHclassifier}} has been run}
+
+\item{redD}{the name of the reducedDim of the input to use for plotting}
 
 \item{col}{a vector of colors. If \code{toplot} is a numeric,
 this will become a continuous scale. \cr
@@ -45,7 +45,6 @@ A ggplot object
 Plots a variable on a t-SNE
 }
 \examples{
-tsne <- tsne_mel
-CD8 <- as.matrix(data_mel['CD8A', ])
-PlotTSNE(toplot = CD8, coor = tsne)
+CD8 <- assay(input_mel)['CD8A', ]
+PlotTSNE(toplot = CD8, input = input_mel)
 }
