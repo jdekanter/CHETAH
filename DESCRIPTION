@@ -1,7 +1,7 @@
 Package: CHETAH
 Title: Fast and accurate scRNA-seq cell type identification
 Type: Package
-Version: 0.99.2
+Version: 0.99.3
 Date: 10-03-2019
 Authors@R: c(person("Jurrian", "de Kanter", email = "jurriandekanter@gmail.com",  role = c("aut", "cre")),
              person("Philip", "Lijnzaad", email = "p.lijnzaad@prinsesmaximacentrum.nl", role = c("aut")))
@@ -39,9 +39,11 @@ biocViews:
   	Clustering
 RoxygenNote: 6.1.1
 Suggests: 
-  	knitr,
+    knitr,
     rmarkdown,
-    Matrix
+    Matrix,
+    testthat,
+    vdiffr
 VignetteBuilder: knitr
 LazyData: true
 BugReports: https://github.com/jdekanter/CHETAH

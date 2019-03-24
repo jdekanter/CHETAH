@@ -6,9 +6,11 @@
 \usage{
 CHETAHclassifier(input, ref_cells = NULL, ref_profiles = NULL,
   ref_ct = "celltypes", input_c = NA, ref_c = NA, thresh = 0.1,
-  gs_method = "fc", cor_method = "spearman",
-  clust_method = "average", clust_dist = bioDist::spearman.dist,
-  n_genes = 200, pc_thresh = 0.2, p_thresh = 0.05, fc_thresh = 1.5,
+  gs_method = c("fc", "wilcox"), cor_method = c("spearman", "kendall",
+  "pearson", "cosine"), clust_method = c("average", "single", "complete",
+  "ward.D2", "ward.D", "mcquitty", "median", "centroid"),
+  clust_dist = bioDist::spearman.dist, n_genes = 200,
+  pc_thresh = 0.2, p_thresh = 0.05, fc_thresh = 1.5,
   subsample = FALSE, fix_ngenes = TRUE, plot.tree = FALSE,
   only_pos = FALSE, print_steps = FALSE)
 }
