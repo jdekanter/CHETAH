@@ -668,7 +668,7 @@ doCorrelation <- function(ref_profiles, genes, input, ref_cells,
 #' input_mel <- Classify(input_mel)
 #'
 #' ## Return only the classification vector
-#' input_mel <- Classify(input_mel, 1, return_clas = TRUE)
+#' celltypes <- Classify(input_mel, 1, return_clas = TRUE)
 Classify <- function(input, thresh = 0.1, return_clas = FALSE) {
     TestCHETAH(input = input)
     

@@ -13,7 +13,7 @@ See the 'Info' tab for info about the method.", duration = 60)
 
   ## Make short links (variables) to the chetah data [links without adjustment don't take up space]
   coor <- SingleCellExperiment::reducedDim(CHETAH:::ch_env$chetah, CHETAH:::ch_env$redD)
-  counts <- SingleCellExperiment::assay(CHETAH:::ch_env$chetah, CHETAH:::ch_env$input_c)
+  counts <- SummarizedExperiment::assay(CHETAH:::ch_env$chetah, CHETAH:::ch_env$input_c)
   conf_scores <- CHETAH:::ch_env$chetah@int_colData$CHETAH$conf_scores
   prof_scores <- CHETAH:::ch_env$chetah@int_colData$CHETAH$prof_scores
   meta_data <- CHETAH:::ch_env$chetah@int_metadata$CHETAH
