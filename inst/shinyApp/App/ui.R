@@ -195,9 +195,13 @@ The branch that is shown can be changed by 'Choose Node'",
                                            ),
                                            ## Heatmap
                                            plotOutput(outputId = "confHM", height = 600),
+                                           tags$div(title =
+"Check to sort alphabetically by cell type.
+If not checked, cells are sorted by confidence score: 
+From highest for the left branch, to highest for the right branch.",
                                            checkboxInput(inputId = "sortByType",
                                                          label = p('Sort by Type', class = 'opt'),
-                                                         value = FALSE),
+                                                         value = FALSE)),
                                            downloadButton('dwn_confHM', 'Download Plot')
                                     )
                                   )
@@ -236,7 +240,7 @@ the 'Choose Node' and
                                            ## Tree
                                            tags$div(title =
 "The tree, with only the selected reference profile
-is colored (red if right branch, blue if left)
+colored (red if right branch, blue if left)
 and the types with which the selected type is compared have the opposite color.
 Is a Profile Score high for type X (with Y and Z in the other branch),
 than this means that this cell is more likely
@@ -284,12 +288,9 @@ Both the plot and a list of the selected genes can be downloaded
                                       column(12,
                                              ## Gene heatmap
                                              tags$div(title =
-"The tree, with only the selected reference profile
-is colored (red if right branch, blue if left)
-and the types with which the selected type is compared have the opposite color.
-Is a Profile Score high for type X (with Y and Z in the other branch),
-than this means that this cell is more likely
-to be of type X than of types Y and Z.",
+"Select a gene, for which to plot 
+the expression per cell, grouped
+and colored per cell type in boxplots",
                                                 h3("Gene expression per cell type")
                                              ),
                                              plotOutput(outputId = "geneExpr", height = 400),

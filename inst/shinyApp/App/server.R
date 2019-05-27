@@ -378,7 +378,7 @@ See the 'Info' tab for info about the method.", duration = 60)
     event  <- plotly::event_data("plotly_relayout", source = 'prof')
     toplot <- ReDefineData(event = event, data = toplot, coor = coor)
     clas   <- ReDefineData(event = event, data = clas, coor = coor)
-    PlotBox(class = clas,
+    CHETAH:::PlotBox(class = clas,
             toplot = toplot,
             col = Clrs())
   })
