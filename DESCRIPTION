@@ -1,7 +1,7 @@
 Package: CHETAH
 Title: Fast and accurate scRNA-seq cell type identification
 Type: Package
-Version: 1.1.3
+Version: 1.1.4
 Date: 10-03-2019
 Authors@R: c(person("Jurrian", "de Kanter", email = "jurriandekanter@gmail.com",  role = c("aut", "cre")),
              person("Philip", "Lijnzaad", email = "p.lijnzaad@prinsesmaximacentrum.nl", role = c("aut")))
