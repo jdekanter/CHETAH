@@ -1,0 +1,17 @@
+
+citHeader("To cite the CHETAH package in publications, please use:")
+
+citEntry(entry = "article",
+    author = c(person("Jurrian", "de Kanter", middle = "K"),
+			   person("Philip", "Lijnzaad"),
+			   person("Tito", "Candelli"),
+			   person("Thanasis", "Margaritis"),
+			   person("Frank", "Holstege", middle = "C P")),
+    title = "CHETAH: a selective, hierarchical cell type identification method for single-cell RNA sequencing",
+    journal = "Nucleic Acids Research",
+    year = "2019",
+    month = "06",
+    issn = "0305-1048",
+    doi = "10.1093/nar/gkz543",
+	textVersion = "de Kanter, J. K., Lijnzaad, P., et al. CHETAH: a selective, hierarchical cell type identification method for single-cell RNA sequencing, Nucleic Acids Res. (2019). doi:10.1093/nar/gkz543"
+)

@@ -149,8 +149,9 @@ CHETAHclassifier <- function (input,
     cor_method <- match.arg(cor_method)
     gs_method <- match.arg(gs_method)
     clust_method <- match.arg(clust_method)
-    
+	
     if (!is.null(ref_cells)) ref_check <- ref_cells else ref_check <- ref_profiles
+	if (any(c("", " ") %in% ref_check[[ref_ct]])) stop("The cell types in the references contains an empty type '' or ' '. Please replace with a character string")
     if (!(ref_ct %in% names(SingleCellExperiment::colData(ref_check)))) {
         stop(paste0("Please add the cell type data in the colData of your reference and supply it's name to 'ref_ct').
                     Current colData:", paste(names(SingleCellExperiment::colData(ref_check)), collapse = " ")))
@@ -986,9 +987,9 @@ PlotCHETAH <- function(input, redD = NA, interm = FALSE, return = FALSE,
         extra_nodes <- extra_nodes[!(extra_nodes %in% int_nodes)]
         if (length(extra_nodes) > 0) leaf_nodes <- c(leaf_nodes, extra_nodes)
         M <- max(length(int_nodes), length(leaf_nodes))
-        if (length(M) < 24)   {
+        if (M < 24)   {
             gray <- paste0('gray', rev(seq(2, 92, 4)))
-        } else if (length(M) < 47) {
+        } else if (M < 47) {
             gray <- paste0('gray', rev(seq(2, 92, 2)))
         } else {
             gray <- rep('gray70', M)
