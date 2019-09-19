@@ -39,7 +39,6 @@ See the 'Info' tab for info about the method.", duration = 60)
                  'steelblue1', 'turquoise')
     nnodes <- names(meta_data$nodetypes[[1]])
     nodes <- c("Unassigned", paste0("Node", seq_len(length(meta_data$nodetypes) - 1)))
-
     if(input$colornodes) {
       n <- nodes
       nodes <- nnodes
@@ -53,7 +52,7 @@ See the 'Info' tab for info about the method.", duration = 60)
     } else {
       gray <- rep('gray70', length(nodes))
     }
-    if (length(nnodes) > 36) colors <- grDevices::rainbow(M)
+    if (length(nnodes) > 36) colors <- grDevices::rainbow(length(nnodes) + 1)
     names(colors) <- nnodes
     names(gray) <- nodes
     cols <- c(gray, colors)
